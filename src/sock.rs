@@ -16,8 +16,11 @@ const IO_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "cmd", rename_all = "kebab-case")]
 pub enum Request {
+    /// A manual run: always runs.
     Run,
     RunFailed,
+    /// From the idle hook: subject to the change gate and auto-send.
+    AutoRun,
     Status,
 }
 
@@ -59,6 +62,9 @@ pub struct Status {
     pub skipped: u32,
     pub build_errors: u32,
     pub auto_run: bool,
+    pub auto_send: bool,
+    /// Auto-sends so far in this pane's session.
+    pub rounds_sent: u32,
 }
 
 /// Whether a pane is answering at `path`. A `status` round trip, not a bare
@@ -141,6 +147,10 @@ mod tests {
             serde_json::from_str::<Request>(r#"{"cmd":"status"}"#).unwrap(),
             Request::Status
         );
+        assert_eq!(
+            serde_json::from_str::<Request>(r#"{"cmd":"auto-run"}"#).unwrap(),
+            Request::AutoRun
+        );
     }
 
     #[test]
@@ -150,7 +160,7 @@ mod tests {
         let listener = bind(&path).unwrap();
         serve(listener, |req| match req {
             Request::Run => Response::ok("queued"),
-            Request::RunFailed => Response::err("nothing failed"),
+            Request::RunFailed | Request::AutoRun => Response::err("nothing failed"),
             Request::Status => Response {
                 ok: true,
                 message: String::new(),

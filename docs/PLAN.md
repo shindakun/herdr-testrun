@@ -42,6 +42,7 @@ herdr-testrun/
       ui.rs               header, list, detail panel, footer
     model.rs              Failure, RunResult, RerunKey, Adapter trait
     detect.rs             walk up from cwd, match markers, one level down
+    gate.rs               change gate: worktree hash
     config.rs             .herdr-testrun.toml
     herdr.rs              plugin env, context JSON, event JSON, agent list
     prompt.rs             format failures into one agent prompt, size caps
@@ -266,15 +267,18 @@ Subcommands:
   `HERDR_TESTRUN_ROOT` set.
 - `on-agent-idle`: read `HERDR_PLUGIN_EVENT_JSON`. If the status went to
   `idle` or `done`, auto-run is on for this root, and a pane is open, send
-  the pane `run`. The pane applies the guards below. No pane, no auto-run.
+  the pane `auto-run`. The pane applies the guards below. No pane, no
+  auto-run.
 
 `HERDR_TESTRUN_ROOT` names the root outright and skips detection, like
 `--dir`. `run` sets it when it opens the pane; `o` sets it for the popup.
 
 The pane and the one-shot commands talk over `pane.sock` in the root's
 state directory. One JSON request per connection, one JSON reply, newline
-terminated: `{"cmd":"run"}`, `{"cmd":"run-failed"}`, `{"cmd":"status"}`
-and `{"ok":bool,"message":str,"status"?:{...}}`. The one-shot commands exit
+terminated: `{"cmd":"run"}`, `{"cmd":"run-failed"}`, `{"cmd":"auto-run"}`,
+`{"cmd":"status"}` and `{"ok":bool,"message":str,"status"?:{...}}`. `run`
+and `run-failed` are manual and always run; `auto-run` is what the idle
+hook sends and is subject to the guards. The one-shot commands exit
 right after the reply. On start the pane removes a stale socket file and
 refuses to start when a live pane already owns the root; on exit it removes
 the file. "Live" means a `status` request gets a reply. A bare `connect`
@@ -336,15 +340,30 @@ prompt, `MAX_PROMPT_BYTES = 16384`. Past the caps, append one line:
 Rerun on agent idle is the point of the plugin and the way it goes wrong.
 Rules, all enforced in the pane process:
 
-- Change gate: hash `git status --porcelain` plus `git diff` for the
-  worktree. Skip the run if the hash matches the last run.
+- Change gate: SHA-256 of `git status --porcelain --untracked-files=all`,
+  `git diff HEAD`, and the size and mtime of each untracked file
+  (`gate.rs`). The worker computes it before every run and the pane keeps
+  the last one. An `auto-run` whose hash matches is skipped with "no
+  changes since the last run". Outside a git worktree the hash is `None`
+  and every auto-run runs. Manual runs never consult the gate.
 - One run at a time per worktree. If a run is active, queue at most one
   more. Extra requests are dropped.
-- Auto-send is off by default. When on: stop after `max_rounds` (default 3)
-  sends per session, and stop when the failure set is identical to the
-  previous run. Reset the counter when a run passes.
+- Auto-send is off by default. `w` cycles off, watch, watch+send. After an
+  automatic run with failures in watch+send: stop after `max_rounds`
+  (default 3) sends per pane session; stop when the failure set
+  (`adapter:name`) is identical to the previous run's; otherwise send and
+  count a round. A passing run resets the counter. Turning the mode on
+  resets the counter and forgets the previous failure set, so the first
+  automatic round sends. A failed send (no agent, agent blocked) is shown
+  and not counted.
 - Timeout per run, default 600s, `timeout_secs` in the config file. On
   timeout kill the process group and set `build_error` to `timed out`.
+
+Checked by hand in a pty against a git-initialized copy of go-basic:
+auto-run refused while off, run on the first request, skipped when
+unchanged, run after an edit, "same failures" stop, and a clean failure
+when no agent is reachable. The successful send and the round limit need a
+live agent.
 
 ## TUI
 
@@ -365,8 +384,8 @@ the passed and skipped totals. With more than one target the failure rows
 carry the adapter id. The detail panel shows the selected row: the
 failure's output, the build error, or per-target totals.
 
-Keys: `r` run all, `f` rerun failed, `a` send to agent, `w` toggle auto-run
-for this root, `enter` toggle the detail panel between eight lines and half
+Keys: `r` run all, `f` rerun failed, `a` send to agent, `w` cycle watch
+modes for this root, `enter` toggle the detail panel between eight lines and half
 the screen, `o` open the raw log in the `log` popup (outside Herdr, show its
 path), `j/k`, arrows, `g/G`, page keys move, mouse click and wheel select,
 `q` or `ctrl-c` quit. The footer shows the last status message and the key
@@ -421,7 +440,8 @@ fixture runs through a venv with `pytest` on `PATH`.
 
 Unit tests in each module for: detection walk, config parsing, prompt
 formatting and caps, rerun command construction, state round trips, herdr
-JSON parsing, runner streaming and timeout, socket round trip, job scope.
+JSON parsing, runner streaming and timeout, socket round trip, job scope,
+change gate against a real git repo.
 The pane is checked by hand: run it in a pty, send keys, read the screen.
 
 CI: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
@@ -442,6 +462,5 @@ with Go, Node, and Python installed.
    tests, all nine fixtures end to end, rerun-failed checked in the pane for
    each runner.
 6. Auto-run guards in the pane: change gate, auto-send with `max_rounds`
-   and the identical-failure-set stop. The hook already forwards idle
-   events to the pane's socket when auto-run is on.
+   and the identical-failure-set stop. Done.
 7. Install from GitHub, tag `herdr-plugin`.

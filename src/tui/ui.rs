@@ -97,8 +97,12 @@ fn header_line(app: &App) -> Line<'static> {
             Style::default().fg(Color::DarkGray),
         ));
     }
-    if app.settings.auto_run {
-        spans.push(Span::styled("  watch", Style::default().fg(Color::Cyan)));
+    let watch = app.watch_label();
+    if !watch.is_empty() {
+        spans.push(Span::styled(
+            format!("  {watch}"),
+            Style::default().fg(Color::Cyan),
+        ));
     }
     Line::from(spans)
 }

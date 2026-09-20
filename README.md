@@ -2,7 +2,7 @@
 
 A [Herdr](https://herdr.dev) plugin that runs a project's tests in a split pane, lists the failures, and sends them to the workspace's agent on one key. Rust, one binary. One adapter per test runner: Go, Cargo, Jest, Vitest, `node --test`, and Pytest.
 
-Status: the pane, detection, the config file, all six adapters, and the `run`, `send`, and `log` subcommands work. The auto-run guards are next. The design and build order are in [docs/PLAN.md](docs/PLAN.md).
+Status: the pane, detection, the config file, all six adapters, auto-run with its guards, and the `run`, `send`, and `log` subcommands work. The design is in [docs/PLAN.md](docs/PLAN.md).
 
 ## Install
 
@@ -58,13 +58,15 @@ The pane:
 | `r` | Run everything |
 | `f` | Rerun only the failures from the last run |
 | `a` | Send the failures to the workspace's agent |
-| `w` | Toggle auto-run for this project: rerun when the agent goes idle |
+| `w` | Cycle watch modes for this project: off, watch, watch+send |
 | `enter` | Grow or shrink the detail panel |
 | `o` | Open the raw runner output in a popup |
 | `j` `k` `g` `G`, arrows, mouse | Move the selection |
 | `q` | Quit |
 
 While a run is active the bottom panel streams the runner's output. One run at a time; a second request waits behind it and further requests are dropped.
+
+Watch reruns the tests when the workspace's agent goes idle, and only when the worktree changed since the last run (`git status` and `git diff HEAD`, plus the size and mtime of untracked files). Watch+send also sends the failures back to the agent after each automatic run, so the agent fixes, the tests rerun, and the loop continues. It stops after three rounds, or when a run produces the same failures as the one before, and the counter resets when a run passes. Both modes are per project and persist across pane restarts.
 
 The binary also works outside Herdr:
 

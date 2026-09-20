@@ -6,6 +6,7 @@ pub mod adapters;
 pub mod cli;
 pub mod config;
 pub mod detect;
+pub mod gate;
 pub mod herdr;
 pub mod job;
 pub mod model;

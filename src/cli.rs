@@ -248,7 +248,8 @@ pub fn log(args: &[String]) -> Result<(), String> {
 
 /// `on-agent-idle`: the `pane.agent_status_changed` hook. When the status
 /// is idle, auto-run is on for the pane's project, and a Tests pane is
-/// open, ask the pane to run. The pane applies the guards.
+/// open, send the pane `auto-run`. The pane applies the change gate and
+/// the auto-send limits.
 pub fn on_agent_idle() -> Result<(), String> {
     let json = std::env::var("HERDR_PLUGIN_EVENT_JSON")
         .map_err(|_| "HERDR_PLUGIN_EVENT_JSON is not set; run under herdr")?;
@@ -268,7 +269,7 @@ pub fn on_agent_idle() -> Result<(), String> {
     if !sock::probe(&socket) {
         return Ok(());
     }
-    let reply = sock::send(&socket, &Request::Run)?;
+    let reply = sock::send(&socket, &Request::AutoRun)?;
     println!("{}: {}", root.display(), reply.message);
     Ok(())
 }

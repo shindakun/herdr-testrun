@@ -16,7 +16,7 @@ use ratatui::crossterm::execute;
 
 use crate::herdr::PluginEnv;
 use crate::sock;
-use app::{App, Msg};
+use app::{App, Job, Msg};
 
 /// Spinner rate and the longest the loop waits between redraws.
 const TICK: Duration = Duration::from_millis(100);
@@ -50,7 +50,7 @@ pub fn run(root: PathBuf, env: Option<PluginEnv>) -> Result<(), String> {
 
     let mut terminal = ratatui::try_init().map_err(|e| format!("terminal: {e}"))?;
     let _ = execute!(std::io::stdout(), EnableMouseCapture);
-    app.request(app::Scope::All);
+    app.request(Job::manual(app::Scope::All));
     let result = event_loop(&mut terminal, &mut app, &rx);
     let _ = execute!(std::io::stdout(), DisableMouseCapture);
     ratatui::restore();

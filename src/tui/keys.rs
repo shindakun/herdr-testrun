@@ -4,7 +4,7 @@ use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
 
-use super::app::{App, Scope};
+use super::app::{App, Job, Scope};
 
 pub const HINT: &str = "r run  f failed  a agent  w watch  enter expand  o log  q quit";
 
@@ -12,17 +12,19 @@ pub fn key(app: &mut App, key: KeyEvent) {
     match (key.code, key.modifiers) {
         (KeyCode::Char('q'), _) | (KeyCode::Char('c'), KeyModifiers::CONTROL) => app.quit = true,
         (KeyCode::Char('r'), _) => {
-            let msg = app.request(Scope::All);
+            let msg = app.request(Job::manual(Scope::All));
             app.status = Some(msg);
         }
         (KeyCode::Char('f'), _) => {
             app.status = Some(match app.failed_scope() {
-                Some(scope) => app.request(scope),
+                Some(scope) => app.request(Job::manual(scope)),
                 None => "nothing failed in the last run".into(),
             });
         }
-        (KeyCode::Char('a'), _) => app.send_to_agent(),
-        (KeyCode::Char('w'), _) => app.toggle_auto_run(),
+        (KeyCode::Char('a'), _) => {
+            app.send_to_agent();
+        }
+        (KeyCode::Char('w'), _) => app.cycle_watch(),
         (KeyCode::Char('o'), _) => app.open_log(),
         (KeyCode::Enter, _) => app.expanded = !app.expanded,
         (KeyCode::Char('j') | KeyCode::Down, _) => app.move_selection(1),
