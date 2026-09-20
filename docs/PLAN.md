@@ -468,5 +468,4 @@ with Go, Node, and Python installed.
    and the identical-failure-set stop.
 7. Publish: the `herdr-plugin` topic on the repo, install from GitHub.
 
-Steps 1 through 6 are built. Step 4's live send and step 7's install from
-GitHub are checked in a Herdr session.
+All seven steps are built; 0.1.0 is the first release.

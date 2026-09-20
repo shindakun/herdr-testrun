@@ -39,7 +39,8 @@ grep -A1 '^name = "herdr-testrun"' Cargo.lock | grep -q "version = \"$version\""
 cargo build --release
 
 git add Cargo.toml Cargo.lock herdr-plugin.toml
-git commit -q -m "Release $version"
+# --allow-empty: the manifests may already carry the version.
+git commit -q --allow-empty -m "Release $version"
 trap - EXIT
 git tag -a "v$version" -m "herdr-testrun $version"
 git push -q origin main "v$version"

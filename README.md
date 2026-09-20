@@ -2,7 +2,7 @@
 
 A [Herdr](https://herdr.dev) plugin that runs a project's tests in a split pane, lists the failures, and sends them to the workspace's agent on one key. Rust, one binary. One adapter per test runner: Go, Cargo, Jest, Vitest, `node --test`, and Pytest.
 
-Status: the pane, detection, the config file, all six adapters, auto-run with its guards, and the `run`, `send`, and `log` subcommands work. The design is in [docs/PLAN.md](docs/PLAN.md).
+The design is in [docs/PLAN.md](docs/PLAN.md).
 
 ## Install
 
