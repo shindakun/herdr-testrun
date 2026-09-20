@@ -463,4 +463,7 @@ with Go, Node, and Python installed.
    each runner.
 6. Auto-run guards in the pane: change gate, auto-send with `max_rounds`
    and the identical-failure-set stop. Done.
-7. Install from GitHub, tag `herdr-plugin`.
+7. Publish. The repo carries the `herdr-plugin` topic and CI is green.
+   The dev machine runs the plugin from a linked checkout, which Herdr
+   refuses to install over; `herdr plugin install shindakun/herdr-testrun`
+   is checked from a machine without the link.
