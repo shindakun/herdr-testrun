@@ -12,9 +12,9 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
-use herdr_testrun::cli::run_target;
 use herdr_testrun::config::Config;
 use herdr_testrun::detect;
+use herdr_testrun::job::run_target;
 
 /// Adapters with a parser. Extend as docs/PLAN.md build order step 5 lands.
 const READY: &[&str] = &["go"];
@@ -117,7 +117,8 @@ fn fixtures_match_expected() {
                 eprintln!("{name}: skipped {id} (toolchain or dependencies missing)");
                 continue;
             }
-            let (result, _log) = run_target(target, &state, Duration::from_secs(300)).unwrap();
+            let result =
+                run_target(target, &state, Duration::from_secs(300), None, |_, _| {}).unwrap();
             build_error |= result.build_error.is_some();
             got.extend(result.failures.iter().map(|f| ExpectedFailure {
                 adapter: f.adapter.to_string(),

@@ -1,18 +1,18 @@
-//! The one-shot subcommands. `run` works with no Herdr present; `send` and
-//! `on-agent-idle` need the Herdr environment.
+//! The subcommands. `run` and `send` work with no Herdr present; `pane`
+//! does too for development; `on-agent-idle` and `log` need the Herdr
+//! environment.
 
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
-use crate::config::{self, Config};
-use crate::detect::{self, Target};
 use crate::herdr::{self, AgentStatusEvent, PluginEnv};
-use crate::model::RunResult;
+use crate::job::{self, Scope};
+use crate::model::{Failure, RunResult};
+use crate::sock::{self, Request};
 use crate::state::ProjectState;
-use crate::{adapters, prompt, runner};
+use crate::{detect, prompt, tui};
 
-pub const USAGE: &str =
-    "usage: herdr-testrun pane | run [--dir PATH] [--json] | send [--dir PATH] [--print] | on-agent-idle";
+pub const USAGE: &str = "usage: herdr-testrun pane [--dir PATH] | run [--dir PATH] [--json] \
+| send [--dir PATH] [--print] | log [--dir PATH] | on-agent-idle";
 
 /// `--dir PATH` plus boolean flags from an argv slice.
 struct Args {
@@ -51,11 +51,11 @@ fn plugin_env() -> Result<Option<PluginEnv>, String> {
     }
 }
 
-/// The project root for a subcommand. `--dir` is the root as given. With no
-/// `--dir`, the detection walk starts at the focused pane's cwd from the
-/// Herdr context, else the process cwd.
+/// The project root for a subcommand. `--dir` or `HERDR_TESTRUN_ROOT` is
+/// the root as given. Otherwise the detection walk starts at the focused
+/// pane's cwd from the Herdr context, else the process cwd.
 fn project_root(dir: Option<PathBuf>, env: Option<&PluginEnv>) -> Result<PathBuf, String> {
-    if let Some(d) = dir {
+    if let Some(d) = dir.or_else(herdr::root_override) {
         return std::fs::canonicalize(&d).map_err(|e| format!("{}: {e}", d.display()));
     }
     let start = match env.and_then(|e| e.context.as_ref()).and_then(|c| c.cwd()) {
@@ -66,22 +66,44 @@ fn project_root(dir: Option<PathBuf>, env: Option<&PluginEnv>) -> Result<PathBuf
 }
 
 /// Under Herdr the plugin state dir; standalone, a directory under temp.
-fn state_dir(env: Option<&PluginEnv>) -> PathBuf {
+pub fn state_dir(env: Option<&PluginEnv>) -> PathBuf {
     match env {
         Some(e) => e.state_dir.clone(),
         None => std::env::temp_dir().join("herdr-testrun"),
     }
 }
 
-/// `run [--dir PATH] [--json]`: detect, run every target once, print the
-/// failures. Works with no Herdr present; under Herdr it starts from the
-/// focused pane's cwd and keeps `last.json` and `raw.log` in the state dir.
+/// `pane [--dir PATH]`: the TUI.
+pub fn pane(args: &[String]) -> Result<(), String> {
+    let a = Args::parse("pane", args, &[])?;
+    let env = plugin_env()?;
+    let root = project_root(a.dir, env.as_ref())?;
+    tui::run(root, env)
+}
+
+/// `run [--dir PATH] [--json]`. With a pane open for this root, ask it to
+/// run. Under Herdr with no pane, open one; it runs on start. Otherwise run
+/// inline and print the failures, exit 1 when any fail.
 pub fn run(args: &[String]) -> Result<(), String> {
     let a = Args::parse("run", args, &["--json"])?;
     let env = plugin_env()?;
     let root = project_root(a.dir.clone(), env.as_ref())?;
-    let results = run_root(&root, env.as_ref())?;
-    if a.flag("--json") {
+    let state = ProjectState::open(&state_dir(env.as_ref()), &root)?;
+    let json = a.flag("--json");
+
+    let socket = state.dir.join(sock::FILE);
+    if sock::probe(&socket) {
+        let reply = sock::send(&socket, &Request::Run)?;
+        return print_reply(&reply, json);
+    }
+    if let Some(env) = &env {
+        open_pane(env, &root)?;
+        println!("opened the Tests pane for {}", root.display());
+        return Ok(());
+    }
+
+    let results = job::run(&root, None, &state, &Scope::All, |_| {})?;
+    if json {
         println!(
             "{}",
             serde_json::to_string_pretty(&results).map_err(|e| e.to_string())?
@@ -98,35 +120,41 @@ pub fn run(args: &[String]) -> Result<(), String> {
     }
 }
 
-/// Detects the targets under `root`, runs each once, and records
-/// `last.json` and `raw.log`.
-pub fn run_root(root: &Path, env: Option<&PluginEnv>) -> Result<Vec<RunResult>, String> {
-    let config = Config::load(root, env.map(|e| e.config_dir.as_path()))?;
-    let targets = detect::targets(root, config.as_ref())?;
-    if targets.is_empty() {
-        return Err(format!("no test runner found under {}", root.display()));
+fn print_reply(reply: &sock::Response, json: bool) -> Result<(), String> {
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(reply).map_err(|e| e.to_string())?
+        );
+    } else if !reply.message.is_empty() {
+        println!("{}", reply.message);
     }
-    let timeout = Duration::from_secs(
-        config
-            .as_ref()
-            .map_or(config::DEFAULT_TIMEOUT_SECS, |c| c.timeout_secs),
-    );
-    let state = ProjectState::open(&state_dir(env), root)?;
+    if reply.ok {
+        Ok(())
+    } else {
+        std::process::exit(1)
+    }
+}
 
-    let mut results = Vec::new();
-    let mut raw = String::new();
-    for target in &targets {
-        let (result, log) = run_target(target, &state.dir, timeout)?;
-        raw.push_str(&log);
-        results.push(result);
-    }
-    std::fs::write(state.raw_log(), &raw)
-        .map_err(|e| format!("{}: {e}", state.raw_log().display()))?;
-    for r in &mut results {
-        r.raw_log = state.raw_log();
-    }
-    state.save_last(&results)?;
-    Ok(results)
+/// `herdr plugin pane open` for the Tests pane at `root`.
+fn open_pane(env: &PluginEnv, root: &Path) -> Result<(), String> {
+    let root_env = format!("HERDR_TESTRUN_ROOT={}", root.display());
+    let cwd = root.display().to_string();
+    env.run(&[
+        "plugin",
+        "pane",
+        "open",
+        "--plugin",
+        &herdr::plugin_id(),
+        "--entrypoint",
+        "tests",
+        "--cwd",
+        &cwd,
+        "--env",
+        &root_env,
+        "--focus",
+    ])
+    .map(drop)
 }
 
 /// `send [--dir PATH] [--print]`: the last run's failures as one prompt to
@@ -139,19 +167,24 @@ pub fn send(args: &[String]) -> Result<(), String> {
     let results = state
         .last()?
         .ok_or_else(|| format!("no recorded run for {}; run first", root.display()))?;
-    let failures: Vec<_> = results
+    let failures: Vec<Failure> = results
         .iter()
         .flat_map(|r| r.failures.iter().cloned())
         .collect();
     if failures.is_empty() {
         return Err("last run had no failures".into());
     }
-    let text = prompt::format(&failures);
     if a.flag("--print") {
-        print!("{text}");
+        print!("{}", prompt::format(&failures));
         return Ok(());
     }
     let env = env.ok_or("send needs the Herdr environment; use --print outside Herdr")?;
+    println!("{}", send_failures(&env, &failures)?);
+    Ok(())
+}
+
+/// Prompts the workspace's agent with `failures`. Returns the line to show.
+pub fn send_failures(env: &PluginEnv, failures: &[Failure]) -> Result<String, String> {
     let ctx = env.context.as_ref();
     let workspace = ctx
         .and_then(|c| c.workspace_id.as_deref())
@@ -163,14 +196,59 @@ pub fn send(args: &[String]) -> Result<(), String> {
         ctx.and_then(|c| c.focused_pane_id.as_deref()),
     )
     .ok_or_else(|| format!("no agent in workspace {workspace}"))?;
-    env.prompt(&agent.pane_id, &text)?;
-    println!("sent {} failure(s) to {}", failures.len(), agent.pane_id);
-    Ok(())
+    env.prompt(&agent.pane_id, &prompt::format(failures))?;
+    Ok(format!(
+        "sent {} failure{} to {}",
+        failures.len(),
+        if failures.len() == 1 { "" } else { "s" },
+        agent.pane_id
+    ))
 }
 
-/// `on-agent-idle`: the `pane.agent_status_changed` hook. Exits quietly
-/// unless the status is idle and auto-run is on for the pane's project. The
-/// guarded rerun itself lives in the pane (docs/PLAN.md build order, step 6).
+/// `log [--dir PATH]`: page the last run's raw output. Backs the `log`
+/// popup pane; `o` in the Tests pane opens it with `HERDR_TESTRUN_ROOT` set.
+pub fn log(args: &[String]) -> Result<(), String> {
+    let a = Args::parse("log", args, &[])?;
+    let env = plugin_env()?;
+    let root = project_root(a.dir, env.as_ref())?;
+    let state = ProjectState::open(&state_dir(env.as_ref()), &root)?;
+    let log = state.raw_log();
+    if !log.is_file() {
+        return Err(format!("no raw log for {}; run first", root.display()));
+    }
+    let pager = std::env::var("PAGER")
+        .ok()
+        .filter(|p| !p.trim().is_empty())
+        .unwrap_or_else(|| "less".to_string());
+    let mut parts = pager.split_whitespace();
+    let program = parts.next().unwrap_or("less");
+    let mut cmd = std::process::Command::new(program);
+    cmd.args(parts);
+    if program == "less" {
+        // Raw control chars through, start at the end.
+        cmd.args(["-R", "+G"]);
+    }
+    cmd.arg(&log);
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        let err = cmd.exec();
+        return Err(format!("exec {program}: {err}"));
+    }
+    #[allow(unreachable_code)]
+    {
+        let status = cmd.status().map_err(|e| format!("{program}: {e}"))?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!("{program} exited with {status}"))
+        }
+    }
+}
+
+/// `on-agent-idle`: the `pane.agent_status_changed` hook. When the status
+/// is idle, auto-run is on for the pane's project, and a Tests pane is
+/// open, ask the pane to run. The pane applies the guards.
 pub fn on_agent_idle() -> Result<(), String> {
     let json = std::env::var("HERDR_PLUGIN_EVENT_JSON")
         .map_err(|_| "HERDR_PLUGIN_EVENT_JSON is not set; run under herdr")?;
@@ -186,46 +264,16 @@ pub fn on_agent_idle() -> Result<(), String> {
     if !state.settings()?.auto_run {
         return Ok(());
     }
-    Err(format!(
-        "auto-run is on for {} but the pane is not built yet; see docs/PLAN.md build order, step 6",
-        root.display()
-    ))
-}
-
-pub fn run_target(
-    target: &Target,
-    state: &Path,
-    timeout: Duration,
-) -> Result<(RunResult, String), String> {
-    let mut cmd = match &target.command {
-        Some(argv) => {
-            let mut c = adapters::base_command(&argv[0], &target.dir);
-            c.args(&argv[1..]);
-            c
-        }
-        None => target.adapter.command(&target.dir, state, None),
-    };
-    let started = std::time::SystemTime::now();
-    let out = runner::run(&mut cmd, timeout)?;
-    let mut result = target
-        .adapter
-        .parse(&target.dir, state, &out.stdout, &out.stderr, out.code);
-    result.started = started;
-    result.duration = out.duration;
-    if out.timed_out {
-        result.build_error = Some(format!("timed out after {}s", timeout.as_secs()));
+    let socket = state.dir.join(sock::FILE);
+    if !sock::probe(&socket) {
+        return Ok(());
     }
-    let log = format!(
-        "==> {} in {}\n{}{}",
-        target.adapter.id(),
-        target.dir.display(),
-        out.stdout,
-        out.stderr
-    );
-    Ok((result, log))
+    let reply = sock::send(&socket, &Request::Run)?;
+    println!("{}: {}", root.display(), reply.message);
+    Ok(())
 }
 
-fn print_result(r: &RunResult, root: &Path) {
+pub fn print_result(r: &RunResult, root: &Path) {
     let dir = r.root.strip_prefix(root).unwrap_or(&r.root);
     let dir = if dir.as_os_str().is_empty() {
         ".".to_string()

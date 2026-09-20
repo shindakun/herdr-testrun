@@ -29,11 +29,17 @@ herdr-testrun/
   README.md
   docs/PLAN.md
   src/
-    main.rs               argv dispatch: pane | run | send | on-agent-idle
+    main.rs               argv dispatch: pane | run | send | log | on-agent-idle
     lib.rs                module list
-    cli.rs                the one-shot subcommands
-    tui.rs                ratatui pane
-    runner.rs             spawn, capture, timeout, process-group kill
+    cli.rs                the subcommands
+    job.rs                one run: detect targets, run each, write last.json and raw.log
+    sock.rs               pane control socket, JSON lines
+    runner.rs             spawn, stream, timeout, process-group kill
+    tui/
+      mod.rs              terminal, socket thread, input thread, event loop
+      app.rs              pane state, rows, run queue, worker thread
+      keys.rs             keys and mouse
+      ui.rs               header, list, detail panel, footer
     model.rs              Failure, RunResult, RerunKey, Adapter trait
     detect.rs             walk up from cwd, match markers, one level down
     config.rs             .herdr-testrun.toml
@@ -144,6 +150,10 @@ Rerun failed only:
 | nodetest | `node --test --test-reporter=tap --test-name-pattern='^NAME$'... FILE...` |
 | pytest | `pytest -o junit_family=xunit1 --junitxml=... NODEID...` |
 
+A target with a `command` override has no rerun form; rerun-failed runs the
+override in full. Targets with no failing test are skipped. The rerun's
+results replace the last run's, so the header shows only what ran.
+
 Package manager for JS: `bun x` if `bun.lockb` or `bun.lock` exists,
 `pnpm exec` if `pnpm-lock.yaml`, `yarn` if `yarn.lock`, else `npx`. Detect
 once per run.
@@ -207,6 +217,14 @@ title = "Tests"
 placement = "split"
 command = ["./target/release/herdr-testrun", "pane"]
 
+[[panes]]
+id = "log"
+title = "Test log"
+placement = "popup"
+width = "90%"
+height = "80%"
+command = ["./target/release/herdr-testrun", "log"]
+
 [[actions]]
 id = "run"
 title = "Run tests"
@@ -226,19 +244,34 @@ command = ["./target/release/herdr-testrun", "on-agent-idle"]
 
 Subcommands:
 
-- `pane`: the TUI. Long-lived. Owns the run queue.
+- `pane [--dir PATH]`: the TUI. Long-lived. Owns the run queue. Runs the
+  tests on start.
 - `run [--dir PATH] [--json]`: with a pane open for this root, ask it to run.
-  With no pane, or outside Herdr, run inline and print the failures; exit 1
-  when any fail. Records `last.json` and `raw.log` either way.
+  Under Herdr with no pane, open one with `herdr plugin pane open --plugin
+  shindakun.testrun --entrypoint tests --cwd ROOT --env
+  HERDR_TESTRUN_ROOT=ROOT --focus`; it runs on start. Outside Herdr with no
+  pane, run inline and print the failures; exit 1 when any fail.
 - `send [--dir PATH] [--print]`: format the last result for this root and
   call `herdr agent prompt`. `--print` writes the prompt to stdout instead.
+- `log [--dir PATH]`: exec `$PAGER` (default `less -R +G`) on `raw.log`.
+  The `log` popup pane runs it; `o` in the Tests pane opens that popup with
+  `HERDR_TESTRUN_ROOT` set.
 - `on-agent-idle`: read `HERDR_PLUGIN_EVENT_JSON`. If the status went to
-  `idle` or `done` and auto-run is on for this root, apply the guards below,
-  then behave like `run`.
+  `idle` or `done`, auto-run is on for this root, and a pane is open, send
+  the pane `run`. The pane applies the guards below. No pane, no auto-run.
 
-The pane and the one-shot commands talk over a Unix socket in the root's
-state directory. Messages: `run`, `run-failed`, `status`. The one-shot
-commands exit right after sending.
+`HERDR_TESTRUN_ROOT` names the root outright and skips detection, like
+`--dir`. `run` sets it when it opens the pane; `o` sets it for the popup.
+
+The pane and the one-shot commands talk over `pane.sock` in the root's
+state directory. One JSON request per connection, one JSON reply, newline
+terminated: `{"cmd":"run"}`, `{"cmd":"run-failed"}`, `{"cmd":"status"}`
+and `{"ok":bool,"message":str,"status"?:{...}}`. The one-shot commands exit
+right after the reply. On start the pane removes a stale socket file and
+refuses to start when a live pane already owns the root; on exit it removes
+the file. "Live" means a `status` request gets a reply. A bare `connect`
+is not proof: on macOS, `connect` to a path whose listener has closed can
+succeed under load, and the stream reads EOF at once.
 
 What herdr 0.9.1 gives each process, from its source
 (`src/app/api/plugins/runtime.rs`, `panes.rs`, `context.rs`) and a live
@@ -319,13 +352,26 @@ ratatui, crossterm. One screen.
  parse_test.go:42: got "", want "x"
 ```
 
+Rows: one per target with a build error first, then one per failure, then
+the passed and skipped totals. With more than one target the failure rows
+carry the adapter id. The detail panel shows the selected row: the
+failure's output, the build error, or per-target totals.
+
 Keys: `r` run all, `f` rerun failed, `a` send to agent, `w` toggle auto-run
-for this worktree, `enter` expand or collapse a failure, `o` open the raw
-log in a popup via `herdr plugin pane open` with `placement=popup`, `j/k`
-move, `q` quit. Mouse click selects a row.
+for this root, `enter` toggle the detail panel between eight lines and half
+the screen, `o` open the raw log in the `log` popup (outside Herdr, show its
+path), `j/k`, arrows, `g/G`, page keys move, mouse click and wheel select,
+`q` or `ctrl-c` quit. The footer shows the last status message and the key
+hint; a long message stands alone.
 
 While a run is active, stream the raw output in the bottom panel and show
 a spinner in the header. Replace it with the parsed list when the run ends.
+The pane keeps the last 500 streamed lines; the whole log is `raw.log`.
+
+Event loop: one channel carries key and mouse events from an input thread,
+output lines and completion from the worker thread, and requests from the
+socket thread. Each socket request waits up to five seconds for the pane's
+reply. A burst of output lines is drained before each redraw.
 
 ## State
 
@@ -335,6 +381,7 @@ a spinner in the header. Replace it with the parsed list when the run ends.
 last.json       Vec<RunResult>, one per target, minus raw output
 raw.log         full stdout+stderr of the last run, all targets
 settings.json   { auto_run: bool, auto_send: bool, max_rounds: u32 }
+pane.sock       the open pane's control socket
 jest.json, vitest.json, junit.xml   adapter result files
 ```
 
@@ -366,7 +413,8 @@ fixture runs through a venv with `pytest` on `PATH`.
 
 Unit tests in each module for: detection walk, config parsing, prompt
 formatting and caps, rerun command construction, state round trips, herdr
-JSON parsing, runner timeout. The change-gate hash lands with the pane.
+JSON parsing, runner streaming and timeout, socket round trip, job scope.
+The pane is checked by hand: run it in a pty, send keys, read the screen.
 
 CI: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
 `cargo test`, `cargo audit`, `markdownlint-cli2`. Fixture tests run on a job
@@ -377,12 +425,14 @@ with Go, Node, and Python installed.
 1. `model.rs`, `adapters/go.rs`, parser test with recorded output. Done.
 2. `runner.rs`, `detect.rs`, a `run` subcommand that prints failures to
    stdout. Works with no herdr present. Done against `fixtures/go-basic`.
-3. `tui.rs`, the socket, and `run` delegating to an open pane. Test against
-   go-basic by hand.
+3. The pane, the socket, `run` delegating to an open pane, the `log`
+   popup. Done against go-basic in a pty. Not yet run inside a Herdr pane:
+   `run` opening the pane, `o` opening the popup.
 4. `send` against a live herdr session. The code is in; it has not been run
    under Herdr.
 5. cargo, jest, vitest, nodetest, pytest parsers. Fixtures and recordings
    exist; add each id to `READY` in `tests/fixtures.rs` as its parser lands.
-6. `on-agent-idle` guards in the pane. The hook parses the event and reads
-   settings; the guarded rerun is the pane's.
-7. Manifest, install from GitHub, tag `herdr-plugin`.
+6. Auto-run guards in the pane: change gate, auto-send with `max_rounds`
+   and the identical-failure-set stop. The hook already forwards idle
+   events to the pane's socket when auto-run is on.
+7. Install from GitHub, tag `herdr-plugin`.

@@ -14,6 +14,14 @@ title = "Tests"
 placement = "split"
 command = ["./target/release/herdr-testrun", "pane"]
 
+[[panes]]
+id = "log"
+title = "Test log"
+placement = "popup"
+width = "90%"
+height = "80%"
+command = ["./target/release/herdr-testrun", "log"]
+
 [[actions]]
 id = "run"
 title = "Run tests"

@@ -1,14 +1,14 @@
 use std::process::ExitCode;
 
 use herdr_testrun::cli::{self, USAGE};
-use herdr_testrun::tui;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
-        Some("pane") => tui::run(),
+        Some("pane") => cli::pane(&args[1..]),
         Some("run") => cli::run(&args[1..]),
         Some("send") => cli::send(&args[1..]),
+        Some("log") => cli::log(&args[1..]),
         Some("on-agent-idle") => cli::on_agent_idle(),
         None | Some("--help" | "-h" | "help") => {
             println!("{USAGE}");

@@ -7,9 +7,11 @@ pub mod cli;
 pub mod config;
 pub mod detect;
 pub mod herdr;
+pub mod job;
 pub mod model;
 pub mod prompt;
 pub mod runner;
+pub mod sock;
 pub mod state;
 #[cfg(test)]
 pub mod testutil;

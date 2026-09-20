@@ -7,8 +7,22 @@ use std::process::Command;
 
 use serde::Deserialize;
 
+/// The manifest id, used when Herdr did not pass `HERDR_PLUGIN_ID`.
+pub const PLUGIN_ID: &str = "shindakun.testrun";
+
 fn var(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.is_empty())
+}
+
+/// This plugin's id as Herdr knows it.
+pub fn plugin_id() -> String {
+    var("HERDR_PLUGIN_ID").unwrap_or_else(|| PLUGIN_ID.to_string())
+}
+
+/// `HERDR_TESTRUN_ROOT`, set by `run` when it opens the pane and by `o` when
+/// it opens the log popup, so those processes skip root detection.
+pub fn root_override() -> Option<PathBuf> {
+    var("HERDR_TESTRUN_ROOT").map(PathBuf::from)
 }
 
 #[derive(Debug, Clone)]

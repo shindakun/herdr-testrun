@@ -1,8 +1,8 @@
-//! Spawns one test command, captures its output, and kills it on timeout.
-//! The one-at-a-time queue and streaming to the pane land with the TUI.
+//! Spawns one test command, streams its output, and kills it on timeout.
 
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read};
 use std::process::{Command, Stdio};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 pub struct Output {
@@ -14,9 +14,24 @@ pub struct Output {
     pub timed_out: bool,
 }
 
-/// Runs `cmd` to completion or `timeout`, whichever comes first. The child
-/// gets its own process group so a timeout kills its descendants too.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stream {
+    Stdout,
+    Stderr,
+}
+
+/// Runs `cmd` to completion or `timeout`, whichever comes first.
 pub fn run(cmd: &mut Command, timeout: Duration) -> Result<Output, String> {
+    run_with(cmd, timeout, |_, _| {})
+}
+
+/// Like [`run`], calling `on_line` with each line as it arrives. The child
+/// gets its own process group so a timeout kills its descendants too.
+pub fn run_with(
+    cmd: &mut Command,
+    timeout: Duration,
+    mut on_line: impl FnMut(Stream, &str),
+) -> Result<Output, String> {
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     #[cfg(unix)]
     {
@@ -27,23 +42,43 @@ pub fn run(cmd: &mut Command, timeout: Duration) -> Result<Output, String> {
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("spawn {}: {e}", cmd.get_program().to_string_lossy()))?;
-    let out = drain(child.stdout.take());
-    let err = drain(child.stderr.take());
+    let (tx, rx) = mpsc::channel();
+    let out = read_lines(child.stdout.take(), Stream::Stdout, tx.clone());
+    let err = read_lines(child.stderr.take(), Stream::Stderr, tx);
+    let mut stdout = String::new();
+    let mut stderr = String::new();
     let mut timed_out = false;
-    let status = loop {
-        if let Some(s) = child.try_wait().map_err(|e| format!("wait: {e}"))? {
-            break s;
+    let mut status = None;
+    // Drain lines until both readers hang up; poll the child in between so a
+    // timeout fires even while output is quiet.
+    loop {
+        match rx.recv_timeout(Duration::from_millis(20)) {
+            Ok((stream, line)) => {
+                on_line(stream, &line);
+                match stream {
+                    Stream::Stdout => stdout.push_str(&line),
+                    Stream::Stderr => stderr.push_str(&line),
+                }
+                continue;
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
         }
-        if started.elapsed() >= timeout {
+        if status.is_none() {
+            status = child.try_wait().map_err(|e| format!("wait: {e}"))?;
+        }
+        if status.is_none() && !timed_out && started.elapsed() >= timeout {
             timed_out = true;
             kill_group(&child);
             let _ = child.kill();
-            break child.wait().map_err(|e| format!("wait: {e}"))?;
         }
-        std::thread::sleep(Duration::from_millis(20));
+    }
+    let _ = out.join();
+    let _ = err.join();
+    let status = match status {
+        Some(s) => s,
+        None => child.wait().map_err(|e| format!("wait: {e}"))?,
     };
-    let stdout = out.join().map_err(|_| "stdout reader panicked")?;
-    let stderr = err.join().map_err(|_| "stderr reader panicked")?;
     Ok(Output {
         stdout,
         stderr,
@@ -57,13 +92,31 @@ pub fn run(cmd: &mut Command, timeout: Duration) -> Result<Output, String> {
     })
 }
 
-fn drain<R: Read + Send + 'static>(r: Option<R>) -> std::thread::JoinHandle<String> {
+/// Reads `r` line by line (newlines kept) onto `tx`. Invalid UTF-8 is
+/// replaced, not dropped.
+fn read_lines<R: Read + Send + 'static>(
+    r: Option<R>,
+    stream: Stream,
+    tx: mpsc::Sender<(Stream, String)>,
+) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
+        let Some(r) = r else { return };
+        let mut reader = BufReader::new(r);
         let mut buf = Vec::new();
-        if let Some(mut r) = r {
-            let _ = r.read_to_end(&mut buf);
+        loop {
+            buf.clear();
+            match reader.read_until(b'\n', &mut buf) {
+                Ok(0) | Err(_) => break,
+                Ok(_) => {
+                    if tx
+                        .send((stream, String::from_utf8_lossy(&buf).into_owned()))
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }
         }
-        String::from_utf8_lossy(&buf).into_owned()
     })
 }
 
@@ -93,6 +146,26 @@ mod tests {
         assert_eq!(o.stderr, "err\n");
         assert_eq!(o.code, 3);
         assert!(!o.timed_out);
+    }
+
+    #[test]
+    fn streams_lines_in_order() {
+        let mut cmd = Command::new("sh");
+        cmd.args(["-c", "echo a; echo b; printf c"]);
+        let mut seen = Vec::new();
+        let o = run_with(&mut cmd, Duration::from_secs(5), |s, l| {
+            seen.push((s, l.to_string()))
+        })
+        .unwrap();
+        assert_eq!(
+            seen,
+            vec![
+                (Stream::Stdout, "a\n".to_string()),
+                (Stream::Stdout, "b\n".to_string()),
+                (Stream::Stdout, "c".to_string()),
+            ]
+        );
+        assert_eq!(o.stdout, "a\nb\nc");
     }
 
     #[test]

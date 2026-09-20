@@ -2,7 +2,7 @@
 
 A [Herdr](https://herdr.dev) plugin that runs a project's tests in a split pane, lists the failures, and sends them to the workspace's agent on one key. Rust, one binary. One adapter per test runner: Go, Cargo, Jest, Vitest, `node --test`, and Pytest.
 
-Status: scaffold. Detection, the config file, the Go adapter, the `run` and `send` subcommands, the fixture projects, and the parser test harness work. The pane, the other five parsers, and auto-run on agent idle are next. The design and build order are in [docs/PLAN.md](docs/PLAN.md).
+Status: the pane, detection, the config file, the Go adapter, and the `run`, `send`, and `log` subcommands work. The other five parsers and the auto-run guards are next. The design and build order are in [docs/PLAN.md](docs/PLAN.md).
 
 ## Install
 
@@ -37,14 +37,43 @@ command = "shindakun.testrun.send"
 description = "send test failures to agent"
 ```
 
-`run` finds the project root from the focused pane's cwd (the nearest directory with `.herdr-testrun.toml` or `.git`), detects the test runners, runs them, and records the result. `send` formats the last run's failures as one prompt and gives it to the workspace's agent through `herdr agent prompt`.
+`run` finds the project root from the focused pane's cwd (the nearest directory with `.herdr-testrun.toml` or `.git`) and opens the Tests pane beside it. The pane runs the tests on start and again on each `run`. `send` formats the last run's failures as one prompt and gives it to the workspace's agent through `herdr agent prompt`.
+
+The pane:
+
+```text
+ Tests  go-basic  ✗ 2 failed  3 passed  1 skipped  0.8s
+ ─────────────────────────────────────────────────────────────────────
+ ✗ TestFirstFails  internal/parse/parse_test.go:13
+ ✗ TestParse/empty_input  internal/parse/parse_test.go:25
+ ✓ 3 passed, 1 skipped
+ ─────────────────────────────────────────────────────────────────────
+ go: TestParse/empty_input
+     parse_test.go:25: got "", want "x"
+                    r run  f failed  a agent  w watch  enter expand  o log  q quit
+```
+
+| Key | Does |
+| --- | --- |
+| `r` | Run everything |
+| `f` | Rerun only the failures from the last run |
+| `a` | Send the failures to the workspace's agent |
+| `w` | Toggle auto-run for this project: rerun when the agent goes idle |
+| `enter` | Grow or shrink the detail panel |
+| `o` | Open the raw runner output in a popup |
+| `j` `k` `g` `G`, arrows, mouse | Move the selection |
+| `q` | Quit |
+
+While a run is active the bottom panel streams the runner's output. One run at a time; a second request waits behind it and further requests are dropped.
 
 The binary also works outside Herdr:
 
 ```sh
-herdr-testrun run --dir path/to/project        # print failures, exit 1 if any
+herdr-testrun pane --dir path/to/project       # the pane in the current terminal
+herdr-testrun run --dir path/to/project        # ask an open pane to run, else run inline and print
 herdr-testrun run --dir path/to/project --json
 herdr-testrun send --dir path/to/project --print   # print the prompt instead of sending
+herdr-testrun log --dir path/to/project        # page the last raw output
 ```
 
 `--dir` is the project root as given; without it the detection walk starts at the current directory.
