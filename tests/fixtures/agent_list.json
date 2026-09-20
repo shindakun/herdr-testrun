@@ -1,0 +1,71 @@
+{
+  "id": "cli:agent:list",
+  "result": {
+    "agents": [
+      {
+        "agent": "claude",
+        "agent_session": {
+          "agent": "claude",
+          "kind": "id",
+          "source": "herdr:claude",
+          "value": "b4fe0173-0c83-4db1-98a7-c5da22c18d04"
+        },
+        "agent_status": "idle",
+        "cwd": "/Users/steve/Code/goat-herdr",
+        "focused": false,
+        "foreground_cwd": "/Users/steve/Code/goat-herdr",
+        "pane_id": "w3:p1",
+        "revision": 3,
+        "state_change_seq": 133,
+        "tab_id": "w3:t1",
+        "terminal_id": "term_65bdb984c2d4c1",
+        "terminal_title": "\u2733 Herdr alerting system plugin",
+        "terminal_title_stripped": "Herdr alerting system plugin",
+        "workspace_id": "w3"
+      },
+      {
+        "agent": "claude",
+        "agent_session": {
+          "agent": "claude",
+          "kind": "id",
+          "source": "herdr:claude",
+          "value": "9ac60d93-93cc-49fb-a895-bdffc901e920"
+        },
+        "agent_status": "working",
+        "cwd": "/Users/steve/Code/herdr-rss",
+        "focused": true,
+        "foreground_cwd": "/Users/steve/Code/herdr-rss",
+        "pane_id": "w5:p1",
+        "revision": 9,
+        "state_change_seq": 142,
+        "tab_id": "w5:t1",
+        "terminal_id": "term_65be243121b7915",
+        "terminal_title": "\u25d0 Herdr RSS viewer plugin plan",
+        "terminal_title_stripped": "Herdr RSS viewer plugin plan",
+        "workspace_id": "w5"
+      },
+      {
+        "agent": "claude",
+        "agent_session": {
+          "agent": "claude",
+          "kind": "id",
+          "source": "herdr:claude",
+          "value": "73b3059a-550b-4950-b66b-a448ad819855"
+        },
+        "agent_status": "idle",
+        "cwd": "/Users/steve/Code/herdr-vault",
+        "focused": false,
+        "foreground_cwd": "/Users/steve/Code/herdr-vault",
+        "pane_id": "w6:p1",
+        "revision": 6,
+        "state_change_seq": 120,
+        "tab_id": "w6:t1",
+        "terminal_id": "term_65be24a042db716",
+        "terminal_title": "\u2733 Vault conversational LLM with user context",
+        "terminal_title_stripped": "Vault conversational LLM with user context",
+        "workspace_id": "w6"
+      }
+    ],
+    "type": "agent_list"
+  }
+}

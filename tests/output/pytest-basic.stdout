@@ -1,0 +1,23 @@
+.FE                                                                      [100%]
+==================================== ERRORS ====================================
+__________________ ERROR at setup of test_uses_broken_fixture __________________
+
+    @pytest.fixture
+    def broken_fixture():
+>       raise RuntimeError("fixture setup fails on purpose")
+E       RuntimeError: fixture setup fails on purpose
+
+tests/test_mathx.py:16: RuntimeError
+=================================== FAILURES ===================================
+_________________________________ test_double __________________________________
+
+    def test_double():
+>       assert double(2) == 4
+E       assert 5 == 4
+E        +  where 5 = double(2)
+
+tests/test_mathx.py:11: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_mathx.py::test_double - assert 5 == 4
+ERROR tests/test_mathx.py::test_uses_broken_fixture - RuntimeError: fixture s...
+1 failed, 1 passed, 1 error in 0.04s

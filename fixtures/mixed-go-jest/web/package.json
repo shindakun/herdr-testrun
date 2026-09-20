@@ -1,0 +1,11 @@
+{
+  "name": "mixed-go-jest-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^30.0.0"
+  }
+}

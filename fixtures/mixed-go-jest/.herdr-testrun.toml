@@ -1,0 +1,8 @@
+# A Go root with a Jest app in web/. Detection only looks one level down
+# when the root has no markers, so a monorepo names both targets here.
+[[target]]
+adapter = "go"
+
+[[target]]
+adapter = "jest"
+dir = "web"

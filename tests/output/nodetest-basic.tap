@@ -1,0 +1,42 @@
+TAP version 13
+# Subtest: adds two numbers
+ok 1 - adds two numbers
+  ---
+  duration_ms: 3.701165
+  type: 'test'
+  ...
+# Subtest: doubles a number
+not ok 2 - doubles a number
+  ---
+  duration_ms: 2.301809
+  type: 'test'
+  location: '/FIXTURE_ROOT/test/math.test.js:9:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    5 !== 4
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 4
+  actual: 5
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///FIXTURE_ROOT/test/math.test.js:10:10)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1397:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+    Test.postRun (node:internal/test_runner/test:1537:19)
+    Test.run (node:internal/test_runner/test:1462:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 270.468695

@@ -1,0 +1,7 @@
+{
+  "adapters": ["jest"],
+  "failures": [
+    { "adapter": "jest", "name": "doubles a number", "file": "math.test.js", "line": 7 }
+  ],
+  "build_error": false
+}

@@ -1,0 +1,7 @@
+# The command replaces `cargo test --no-fail-fast`; the cargo adapter still
+# parses the output, so the override must keep libtest's format.
+timeout_secs = 120
+
+[[target]]
+adapter = "cargo"
+command = ["cargo", "test", "--no-fail-fast", "--offline"]

@@ -1,0 +1,7 @@
+{
+  "adapters": ["vitest"],
+  "failures": [
+    { "adapter": "vitest", "name": "doubles a number", "file": "math.test.js", "line": 9 }
+  ],
+  "build_error": false
+}

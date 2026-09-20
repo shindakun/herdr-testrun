@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running unittests src/lib.rs (target/debug/deps/cargo_basic-c44da1bfc21e2380)
+error: test failed, to rerun pass `--lib`
+     Running tests/integration.rs (target/debug/deps/integration-092e10ca7dfab0d1)
+error: test failed, to rerun pass `--test integration`
+   Doc-tests cargo_basic
+error: 2 targets failed:
+    `--lib`
+    `--test integration`

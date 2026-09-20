@@ -1,0 +1,8 @@
+{"ImportPath":"example.com/gobuildfail [example.com/gobuildfail.test]","Action":"build-output","Output":"# example.com/gobuildfail [example.com/gobuildfail.test]\n"}
+{"ImportPath":"example.com/gobuildfail [example.com/gobuildfail.test]","Action":"build-output","Output":"./broken.go:5:24: too many return values\n"}
+{"ImportPath":"example.com/gobuildfail [example.com/gobuildfail.test]","Action":"build-output","Output":"\thave (number)\n"}
+{"ImportPath":"example.com/gobuildfail [example.com/gobuildfail.test]","Action":"build-output","Output":"\twant ()\n"}
+{"ImportPath":"example.com/gobuildfail [example.com/gobuildfail.test]","Action":"build-fail"}
+{"Time":"2026-09-19T22:15:30.700088-07:00","Action":"start","Package":"example.com/gobuildfail"}
+{"Time":"2026-09-19T22:15:30.70088-07:00","Action":"output","Package":"example.com/gobuildfail","Output":"FAIL\texample.com/gobuildfail [build failed]\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.700906-07:00","Action":"fail","Package":"example.com/gobuildfail","Elapsed":0.001,"FailedBuild":"example.com/gobuildfail [example.com/gobuildfail.test]"}

@@ -1,0 +1,31 @@
+id = "shindakun.testrun"
+name = "Test Run"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Run tests in a pane, send failures to the agent"
+platforms = ["linux", "macos"]
+
+[[build]]
+command = ["cargo", "build", "--release"]
+
+[[panes]]
+id = "tests"
+title = "Tests"
+placement = "split"
+command = ["./target/release/herdr-testrun", "pane"]
+
+[[actions]]
+id = "run"
+title = "Run tests"
+contexts = ["workspace", "pane"]
+command = ["./target/release/herdr-testrun", "run"]
+
+[[actions]]
+id = "send"
+title = "Send failures to agent"
+contexts = ["workspace", "pane"]
+command = ["./target/release/herdr-testrun", "send"]
+
+[[events]]
+on = "pane.agent_status_changed"
+command = ["./target/release/herdr-testrun", "on-agent-idle"]

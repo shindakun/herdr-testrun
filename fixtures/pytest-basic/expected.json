@@ -1,0 +1,8 @@
+{
+  "adapters": ["pytest"],
+  "failures": [
+    { "adapter": "pytest", "name": "tests/test_mathx.py::test_double", "file": "tests/test_mathx.py", "line": 10 },
+    { "adapter": "pytest", "name": "tests/test_mathx.py::test_uses_broken_fixture", "file": "tests/test_mathx.py", "line": 19 }
+  ],
+  "build_error": false
+}

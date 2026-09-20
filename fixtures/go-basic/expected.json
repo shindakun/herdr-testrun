@@ -1,0 +1,8 @@
+{
+  "adapters": ["go"],
+  "failures": [
+    { "adapter": "go", "name": "TestFirstFails", "file": "internal/parse/parse_test.go", "line": 13 },
+    { "adapter": "go", "name": "TestParse/empty_input", "file": "internal/parse/parse_test.go", "line": 25 }
+  ],
+  "build_error": false
+}

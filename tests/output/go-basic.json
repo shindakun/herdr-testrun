@@ -1,0 +1,39 @@
+{"Time":"2026-09-19T22:15:29.862468-07:00","Action":"start","Package":"example.com/gobasic/internal/mathx"}
+{"Time":"2026-09-19T22:15:29.8636-07:00","Action":"run","Package":"example.com/gobasic/internal/mathx","Test":"TestAdd"}
+{"Time":"2026-09-19T22:15:29.863625-07:00","Action":"output","Package":"example.com/gobasic/internal/mathx","Test":"TestAdd","Output":"=== RUN   TestAdd\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:29.863682-07:00","Action":"output","Package":"example.com/gobasic/internal/mathx","Test":"TestAdd","Output":"--- PASS: TestAdd (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:29.863692-07:00","Action":"pass","Package":"example.com/gobasic/internal/mathx","Test":"TestAdd","Elapsed":0}
+{"Time":"2026-09-19T22:15:29.863708-07:00","Action":"run","Package":"example.com/gobasic/internal/mathx","Test":"TestSkipped"}
+{"Time":"2026-09-19T22:15:29.863714-07:00","Action":"output","Package":"example.com/gobasic/internal/mathx","Test":"TestSkipped","Output":"=== RUN   TestSkipped\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:29.863721-07:00","Action":"output","Package":"example.com/gobasic/internal/mathx","Test":"TestSkipped","Output":"    mathx_test.go:12: fixture: one skipped test\n"}
+{"Time":"2026-09-19T22:15:29.863728-07:00","Action":"output","Package":"example.com/gobasic/internal/mathx","Test":"TestSkipped","Output":"--- SKIP: TestSkipped (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:29.863738-07:00","Action":"skip","Package":"example.com/gobasic/internal/mathx","Test":"TestSkipped","Elapsed":0}
+{"Time":"2026-09-19T22:15:29.863744-07:00","Action":"output","Package":"example.com/gobasic/internal/mathx","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:29.863755-07:00","Action":"output","Package":"example.com/gobasic/internal/mathx","Output":"ok  \texample.com/gobasic/internal/mathx\t(cached)\n"}
+{"Time":"2026-09-19T22:15:29.863771-07:00","Action":"pass","Package":"example.com/gobasic/internal/mathx","Elapsed":0.001}
+{"Time":"2026-09-19T22:15:30.013278-07:00","Action":"start","Package":"example.com/gobasic/internal/parse"}
+{"Time":"2026-09-19T22:15:30.44802-07:00","Action":"run","Package":"example.com/gobasic/internal/parse","Test":"TestFirstOK"}
+{"Time":"2026-09-19T22:15:30.44812-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestFirstOK","Output":"=== RUN   TestFirstOK\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.448148-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestFirstOK","Output":"--- PASS: TestFirstOK (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.448168-07:00","Action":"pass","Package":"example.com/gobasic/internal/parse","Test":"TestFirstOK","Elapsed":0}
+{"Time":"2026-09-19T22:15:30.448176-07:00","Action":"run","Package":"example.com/gobasic/internal/parse","Test":"TestFirstFails"}
+{"Time":"2026-09-19T22:15:30.448183-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestFirstFails","Output":"=== RUN   TestFirstFails\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.44819-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestFirstFails","Output":"    parse_test.go:13: got \"a\", want \"b\"\n","OutputType":"error"}
+{"Time":"2026-09-19T22:15:30.448202-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestFirstFails","Output":"--- FAIL: TestFirstFails (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.448208-07:00","Action":"fail","Package":"example.com/gobasic/internal/parse","Test":"TestFirstFails","Elapsed":0}
+{"Time":"2026-09-19T22:15:30.448214-07:00","Action":"run","Package":"example.com/gobasic/internal/parse","Test":"TestParse"}
+{"Time":"2026-09-19T22:15:30.448219-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestParse","Output":"=== RUN   TestParse\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.44823-07:00","Action":"run","Package":"example.com/gobasic/internal/parse","Test":"TestParse/plain"}
+{"Time":"2026-09-19T22:15:30.448241-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestParse/plain","Output":"=== RUN   TestParse/plain\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.448263-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestParse/plain","Output":"--- PASS: TestParse/plain (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.44827-07:00","Action":"pass","Package":"example.com/gobasic/internal/parse","Test":"TestParse/plain","Elapsed":0}
+{"Time":"2026-09-19T22:15:30.448282-07:00","Action":"run","Package":"example.com/gobasic/internal/parse","Test":"TestParse/empty_input"}
+{"Time":"2026-09-19T22:15:30.448288-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestParse/empty_input","Output":"=== RUN   TestParse/empty_input\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.448294-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestParse/empty_input","Output":"    parse_test.go:25: got \"\", want \"x\"\n","OutputType":"error"}
+{"Time":"2026-09-19T22:15:30.448301-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestParse/empty_input","Output":"--- FAIL: TestParse/empty_input (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.448307-07:00","Action":"fail","Package":"example.com/gobasic/internal/parse","Test":"TestParse/empty_input","Elapsed":0}
+{"Time":"2026-09-19T22:15:30.448319-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Test":"TestParse","Output":"--- FAIL: TestParse (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.448325-07:00","Action":"fail","Package":"example.com/gobasic/internal/parse","Test":"TestParse","Elapsed":0}
+{"Time":"2026-09-19T22:15:30.448331-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.448678-07:00","Action":"output","Package":"example.com/gobasic/internal/parse","Output":"FAIL\texample.com/gobasic/internal/parse\t0.435s\n","OutputType":"frame"}
+{"Time":"2026-09-19T22:15:30.448714-07:00","Action":"fail","Package":"example.com/gobasic/internal/parse","Elapsed":0.435}

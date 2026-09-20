@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="1" skipped="0" tests="3" time="0.041" timestamp="2026-09-19T22:18:38.008496-07:00" hostname=""><testcase classname="tests.test_mathx" name="test_add" file="tests/test_mathx.py" line="5" time="0.000" /><testcase classname="tests.test_mathx" name="test_double" file="tests/test_mathx.py" line="9" time="0.001"><failure message="assert 5 == 4&#10; +  where 5 = double(2)">def test_double():
+&gt;       assert double(2) == 4
+E       assert 5 == 4
+E        +  where 5 = double(2)
+
+tests/test_mathx.py:11: AssertionError</failure></testcase><testcase classname="tests.test_mathx" name="test_uses_broken_fixture" file="tests/test_mathx.py" line="18" time="0.000"><error message="failed on setup with &quot;RuntimeError: fixture setup fails on purpose&quot;">@pytest.fixture
+    def broken_fixture():
+&gt;       raise RuntimeError("fixture setup fails on purpose")
+E       RuntimeError: fixture setup fails on purpose
+
+tests/test_mathx.py:16: RuntimeError</error></testcase></testsuite></testsuites>

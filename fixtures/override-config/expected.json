@@ -1,0 +1,7 @@
+{
+  "adapters": ["cargo"],
+  "failures": [
+    { "adapter": "cargo", "name": "tests::answer_is_42", "file": "src/lib.rs", "line": 12 }
+  ],
+  "build_error": false
+}

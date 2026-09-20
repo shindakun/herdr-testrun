@@ -1,0 +1,8 @@
+{
+  "adapters": ["cargo"],
+  "failures": [
+    { "adapter": "cargo", "name": "tests::roundtrip_keeps_input", "file": "src/lib.rs", "line": 24 },
+    { "adapter": "cargo", "name": "integration_panics", "file": "tests/integration.rs", "line": 4 }
+  ],
+  "build_error": false
+}

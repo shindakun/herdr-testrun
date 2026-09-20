@@ -1,0 +1,12 @@
+/target
+fixtures/*/target/
+fixtures/*/*/target/
+fixtures/*/node_modules/
+fixtures/*/*/node_modules/
+fixtures/*/.venv/
+__pycache__/
+.pytest_cache/
+.env
+.claude/settings.local.json
+node_modules/
+.DS_Store

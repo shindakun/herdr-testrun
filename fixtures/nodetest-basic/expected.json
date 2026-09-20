@@ -1,0 +1,7 @@
+{
+  "adapters": ["nodetest"],
+  "failures": [
+    { "adapter": "nodetest", "name": "doubles a number", "file": "test/math.test.js", "line": 10 }
+  ],
+  "build_error": false
+}
