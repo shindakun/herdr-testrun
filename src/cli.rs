@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 
 use crate::herdr::{self, AgentStatusEvent, PluginEnv};
 use crate::job::{self, Scope};
-use crate::model::{Failure, RunResult};
+use crate::model::RunResult;
+use crate::prompt::Problems;
 use crate::sock::{self, Request};
 use crate::state::ProjectState;
 use crate::{detect, prompt, tui};
@@ -196,24 +197,21 @@ pub fn send(args: &[String]) -> Result<(), String> {
     let results = state
         .last()?
         .ok_or_else(|| format!("no recorded run for {}; run first", root.display()))?;
-    let failures: Vec<Failure> = results
-        .iter()
-        .flat_map(|r| r.failures.iter().cloned())
-        .collect();
-    if failures.is_empty() {
-        return Err("last run had no failures".into());
+    let problems = Problems::from_results(&results);
+    if problems.is_empty() {
+        return Err("last run passed; nothing to send".into());
     }
     if a.flag("--print") {
-        print!("{}", prompt::format(&failures));
+        print!("{}", prompt::format(&problems));
         return Ok(());
     }
     let env = env.ok_or("send needs the Herdr environment; use --print outside Herdr")?;
-    println!("{}", send_failures(&env, &failures)?);
+    println!("{}", send_problems(&env, &problems)?);
     Ok(())
 }
 
-/// Prompts the workspace's agent with `failures`. Returns the line to show.
-pub fn send_failures(env: &PluginEnv, failures: &[Failure]) -> Result<String, String> {
+/// Prompts the workspace's agent with `problems`. Returns the line to show.
+pub fn send_problems(env: &PluginEnv, problems: &Problems) -> Result<String, String> {
     let ctx = env.context.as_ref();
     let workspace = ctx
         .and_then(|c| c.workspace_id.as_deref())
@@ -225,13 +223,8 @@ pub fn send_failures(env: &PluginEnv, failures: &[Failure]) -> Result<String, St
         ctx.and_then(|c| c.focused_pane_id.as_deref()),
     )
     .ok_or_else(|| format!("no agent in workspace {workspace}"))?;
-    env.prompt(&agent.pane_id, &prompt::format(failures))?;
-    Ok(format!(
-        "sent {} failure{} to {}",
-        failures.len(),
-        if failures.len() == 1 { "" } else { "s" },
-        agent.pane_id
-    ))
+    env.prompt(&agent.pane_id, &prompt::format(problems))?;
+    Ok(format!("sent {} to {}", problems.describe(), agent.pane_id))
 }
 
 /// `log [--dir PATH]`: page the last run's raw output. Backs the `log`

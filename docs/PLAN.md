@@ -324,6 +324,10 @@ an error and exit 1. The target passed to `agent prompt` is the pane id.
 
 ## The prompt
 
+Build errors and failures both go to the agent; a run with only a build
+error opens with `The build fails. Fix the code.` and one `## adapter:
+build failed` section per target.
+
 ```text
 These tests fail. Fix the code, not the tests, unless a test is wrong.
 
@@ -355,12 +359,13 @@ Rules, all enforced in the pane process:
 - One run at a time per worktree. If a run is active, queue at most one
   more. Extra requests are dropped.
 - Auto-send is off by default. `w` cycles off, watch, watch+send. After an
-  automatic run with failures in watch+send: stop after `max_rounds`
-  (default 3) sends per pane session; stop when the failure set
-  (`adapter:name`) is identical to the previous run's; otherwise send and
-  count a round. A passing run resets the counter. Turning the mode on
-  resets the counter and forgets the previous failure set, so the first
-  automatic round sends. A failed send (no agent, agent blocked) is shown
+  automatic run with problems (build errors or failures) in watch+send:
+  stop after `max_rounds` (default 3) sends per pane session; stop when
+  the problem set (`adapter:name`, or `adapter:build:<first line>`) is
+  identical to the previous run's; otherwise send and count a round. A
+  passing run resets the counter. Turning the mode on resets the counter
+  and forgets the previous problem set, so the first automatic round
+  sends. A failed send (no agent, agent blocked) is shown
   and not counted.
 - Timeout per run, default 600s, `timeout_secs` in the config file. On
   timeout kill the process group and set `build_error` to `timed out`.

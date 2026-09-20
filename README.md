@@ -37,7 +37,7 @@ command = "shindakun.testrun.send"
 description = "send test failures to agent"
 ```
 
-`run` finds the project root from the focused pane's cwd (the nearest directory with `.herdr-testrun.toml` or `.git`) and opens the Tests pane beside it. When the focused pane is another plugin's pane, such as a file viewer, it uses the workspace's agent pane instead. The pane runs the tests on start and again on each `run`. `send` formats the last run's failures as one prompt and gives it to the workspace's agent through `herdr agent prompt`.
+`run` finds the project root from the focused pane's cwd (the nearest directory with `.herdr-testrun.toml` or `.git`) and opens the Tests pane beside it. When the focused pane is another plugin's pane, such as a file viewer, it uses the workspace's agent pane instead. The pane runs the tests on start and again on each `run`. `send` formats the last run's build errors and failures as one prompt and gives it to the workspace's agent through `herdr agent prompt`.
 
 The pane:
 
@@ -57,7 +57,7 @@ The pane:
 | --- | --- |
 | `r` | Run everything |
 | `f` | Rerun only the failures from the last run |
-| `a` | Send the failures to the workspace's agent |
+| `a` | Send the build errors and failures to the workspace's agent |
 | `w` | Cycle watch modes for this project: off, watch, watch+send |
 | `enter` | Grow or shrink the detail panel |
 | `o` | Open the raw runner output in a popup |
@@ -66,7 +66,7 @@ The pane:
 
 While a run is active the bottom panel streams the runner's output. One run at a time; a second request waits behind it and further requests are dropped.
 
-Watch reruns the tests when the workspace's agent goes idle, and only when the worktree changed since the last run (`git status` and `git diff HEAD`, plus the size and mtime of untracked files). Watch+send also sends the failures back to the agent after each automatic run, so the agent fixes, the tests rerun, and the loop continues. It stops after three rounds, or when a run produces the same failures as the one before, and the counter resets when a run passes. Both modes are per project and persist across pane restarts.
+Watch reruns the tests when the workspace's agent goes idle, and only when the worktree changed since the last run (`git status` and `git diff HEAD`, plus the size and mtime of untracked files). Watch+send also sends the build errors and failures back to the agent after each automatic run, so the agent fixes, the tests rerun, and the loop continues. It stops after three rounds, or when a run produces the same problems as the one before, and the counter resets when a run passes. Both modes are per project and persist across pane restarts.
 
 The binary also works outside Herdr:
 

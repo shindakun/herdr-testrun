@@ -12,6 +12,7 @@ use ratatui::widgets::ListState;
 use crate::herdr::PluginEnv;
 use crate::job;
 use crate::model::{Failure, RunResult};
+use crate::prompt::Problems;
 use crate::sock::{self, Request, Response};
 use crate::state::{ProjectState, Settings};
 use crate::{cli, gate, herdr};
@@ -80,9 +81,8 @@ pub struct App {
     /// Worktree hash the last run started from; the change gate compares
     /// against it.
     pub last_hash: Option<String>,
-    /// `adapter:name` of every failure in the last run, for the
-    /// identical-failures stop.
-    pub last_failure_set: Option<BTreeSet<String>>,
+    /// One key per problem in the last run, for the identical-problems stop.
+    pub last_problem_set: Option<BTreeSet<String>>,
     /// Auto-sends this session. Reset when a run passes.
     pub rounds_sent: u32,
     pub output: VecDeque<String>,
@@ -119,7 +119,7 @@ impl App {
             running: None,
             queued: None,
             last_hash: None,
-            last_failure_set: None,
+            last_problem_set: None,
             rounds_sent: 0,
             output: VecDeque::new(),
             expanded: false,
@@ -268,17 +268,19 @@ impl App {
         "running".into()
     }
 
-    /// Bookkeeping after a run's results are in: the failure set for the
+    /// Everything the agent should fix from the last run.
+    pub fn problems(&self) -> Problems {
+        Problems::from_results(&self.results)
+    }
+
+    /// Bookkeeping after a run's results are in: the problem set for the
     /// repeat stop, the round counter, and auto-send after an auto run.
     fn after_run(&mut self, auto: bool) {
-        let set: BTreeSet<String> = self
-            .failures
-            .iter()
-            .map(|f| format!("{}:{}", f.adapter, f.name))
-            .collect();
-        let repeat = self.last_failure_set.as_ref() == Some(&set);
-        self.last_failure_set = Some(set);
-        if self.failures.is_empty() {
+        let problems = self.problems();
+        let set = problems.key_set();
+        let repeat = self.last_problem_set.as_ref() == Some(&set);
+        self.last_problem_set = Some(set);
+        if problems.is_empty() {
             self.rounds_sent = 0;
             return;
         }
@@ -291,7 +293,7 @@ impl App {
                 self.settings.max_rounds
             ));
         } else if repeat {
-            self.status = Some("same failures as the last run; not sending".into());
+            self.status = Some("same problems as the last run; not sending".into());
         } else if self.send_to_agent() {
             self.rounds_sent += 1;
         }
@@ -341,17 +343,14 @@ impl App {
         self.list.select(Some(next as usize));
     }
 
-    /// Sends the failures to the workspace's agent. Returns whether it went.
+    /// Sends the last run's problems to the workspace's agent. Returns
+    /// whether it went.
     pub fn send_to_agent(&mut self) -> bool {
+        let problems = self.problems();
         let msg = match &self.env {
             None => Err("send needs Herdr; use `herdr-testrun send --print` here".to_string()),
-            Some(env) => {
-                if self.failures.is_empty() {
-                    Err("nothing failed in the last run".to_string())
-                } else {
-                    cli::send_failures(env, &self.failures)
-                }
-            }
+            Some(_) if problems.is_empty() => Err("last run passed; nothing to send".to_string()),
+            Some(env) => cli::send_problems(env, &problems),
         };
         let sent = msg.is_ok();
         self.status = Some(msg.unwrap_or_else(|e| e));
@@ -369,9 +368,9 @@ impl App {
         self.settings.auto_run = auto_run;
         self.settings.auto_send = auto_send;
         // A fresh loop: the first automatic round sends even when the
-        // failures match the last run.
+        // problems match the last run.
         self.rounds_sent = 0;
-        self.last_failure_set = None;
+        self.last_problem_set = None;
         self.status = Some(match self.state.save_settings(&self.settings) {
             Ok(()) => match (auto_run, auto_send) {
                 (true, false) => "watch: rerun when the agent goes idle".into(),
