@@ -365,12 +365,6 @@ Rules, all enforced in the pane process:
 - Timeout per run, default 600s, `timeout_secs` in the config file. On
   timeout kill the process group and set `build_error` to `timed out`.
 
-Checked by hand in a pty against a git-initialized copy of go-basic:
-auto-run refused while off, run on the first request, skipped when
-unchanged, run after an edit, "same failures" stop, and a clean failure
-when no agent is reachable. The successful send and the round limit need a
-live agent.
-
 ## TUI
 
 ratatui, crossterm. One screen.
@@ -440,15 +434,16 @@ Fixture tests (`tests/fixtures.rs`): run the real adapter against each
 (adapter, name, file, line per failure, plus whether a build error is
 expected). Opt in with `HERDR_TESTRUN_FIXTURES=1`. A fixture is skipped, and
 named, when its toolchain is missing or when a JS fixture has no
-`node_modules` (`make fixture-deps` installs them). Toolchains on the
-dev machine: cargo, go, node, pnpm, yarn. Missing: bun, pytest; the pytest
-fixture runs through a venv with `pytest` on `PATH`.
+`node_modules` (`make fixture-deps` installs them). The pytest fixture
+needs `pytest` on `PATH`.
 
 Unit tests in each module for: detection walk, config parsing, prompt
 formatting and caps, rerun command construction, state round trips, herdr
 JSON parsing, runner streaming and timeout, socket round trip, job scope,
 change gate against a real git repo.
-The pane is checked by hand: run it in a pty, send keys, read the screen.
+
+The pane has no automated test. Check it by running it in a pty, sending
+keys, and reading the screen.
 
 CI: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
 `cargo test`, `cargo audit`, `markdownlint-cli2`. Fixture tests run on a job
@@ -456,20 +451,17 @@ with Go, Node, and Python installed.
 
 ## Build order
 
-1. `model.rs`, `adapters/go.rs`, parser test with recorded output. Done.
+1. `model.rs`, `adapters/go.rs`, parser test with recorded output.
 2. `runner.rs`, `detect.rs`, a `run` subcommand that prints failures to
-   stdout. Works with no herdr present. Done against `fixtures/go-basic`.
+   stdout. Works with no herdr present.
 3. The pane, the socket, `run` delegating to an open pane, the `log`
-   popup. Done against go-basic in a pty. Not yet run inside a Herdr pane:
-   `run` opening the pane, `o` opening the popup.
-4. `send` against a live herdr session. The code is in; it has not been run
-   under Herdr.
-5. cargo, jest, vitest, nodetest, pytest parsers. Done: recorded-output
-   tests, all nine fixtures end to end, rerun-failed checked in the pane for
-   each runner.
+   popup.
+4. `send` against a live herdr session.
+5. cargo, jest, vitest, nodetest, pytest parsers, each with recorded-output
+   tests and a fixture.
 6. Auto-run guards in the pane: change gate, auto-send with `max_rounds`
-   and the identical-failure-set stop. Done.
-7. Publish. The repo carries the `herdr-plugin` topic and CI is green.
-   The dev machine runs the plugin from a linked checkout, which Herdr
-   refuses to install over; `herdr plugin install shindakun/herdr-testrun`
-   is checked from a machine without the link.
+   and the identical-failure-set stop.
+7. Publish: the `herdr-plugin` topic on the repo, install from GitHub.
+
+Steps 1 through 6 are built. Step 4's live send and step 7's install from
+GitHub are checked in a Herdr session.
