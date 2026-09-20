@@ -5,6 +5,7 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+#[derive(Debug)]
 pub struct Output {
     pub stdout: String,
     pub stderr: String,
@@ -39,9 +40,11 @@ pub fn run_with(
         cmd.process_group(0);
     }
     let started = Instant::now();
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| format!("spawn {}: {e}", cmd.get_program().to_string_lossy()))?;
+    let program = cmd.get_program().to_string_lossy().into_owned();
+    let mut child = cmd.spawn().map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => format!("{program} is not installed or not on PATH"),
+        _ => format!("spawn {program}: {e}"),
+    })?;
     let (tx, rx) = mpsc::channel();
     let out = read_lines(child.stdout.take(), Stream::Stdout, tx.clone());
     let err = read_lines(child.stderr.take(), Stream::Stderr, tx);
@@ -181,6 +184,10 @@ mod tests {
     #[test]
     fn missing_program_is_an_error() {
         let mut cmd = Command::new("herdr-testrun-no-such-program");
-        assert!(run(&mut cmd, Duration::from_secs(1)).is_err());
+        let err = run(&mut cmd, Duration::from_secs(1)).unwrap_err();
+        assert_eq!(
+            err,
+            "herdr-testrun-no-such-program is not installed or not on PATH"
+        );
     }
 }

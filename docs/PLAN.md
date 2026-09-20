@@ -138,7 +138,7 @@ key reads it.
 | jest | `package.json` deps or devDeps has `jest` | `npx jest --json --outputFile=STATE/jest.json --testLocationInResults` | `testResults[].assertionResults[]` with `status == "failed"`. `fullName`, `failureMessages[]`. `location.line` is the test's definition line. File is `testResults[].name`, absolute; make it relative to root. |
 | vitest | deps or devDeps has `vitest` | `npx vitest run --reporter=json --outputFile=STATE/vitest.json` | same shape as jest but no `location`. Line comes from the first in-project frame of `failureMessages[0]` (`at ROOT/file:LINE:COL`). |
 | nodetest | `scripts.test` starts with `node --test` | `node --test --test-reporter=tap` | TAP: `not ok N - NAME` then an indented YAML block with `location`, `failureType`, `error`, `stack`. File and line from the first `stack` frame in the project (the assertion), not `location` (the test definition). |
-| pytest | `pyproject.toml`, `pytest.ini`, `setup.cfg` with `[tool:pytest]` | `pytest -o junit_family=xunit1 --junitxml=STATE/junit.xml -q` | `<testcase classname file line name>` with a `<failure>` or `<error>` child. Message is the child's text. The default `xunit2` family omits `file` and `line`, so the command forces `xunit1`. Its `line` is 0-based; add 1. Node id is `FILE::NAME`. |
+| pytest | `pytest.ini`; `setup.cfg` with `[tool:pytest]`; `pyproject.toml` that mentions pytest, beside `conftest.py`, or with a `tests/` dir. A bare `pyproject.toml` is any Python code, not a suite | `pytest -o junit_family=xunit1 --junitxml=STATE/junit.xml -q` | `<testcase classname file line name>` with a `<failure>` or `<error>` child. Message is the child's text. The default `xunit2` family omits `file` and `line`, so the command forces `xunit1`. Its `line` is 0-based; add 1. Node id is `FILE::NAME`. |
 
 Rerun failed only:
 
@@ -161,7 +161,9 @@ prefixes the target's path under the root, so a monorepo failure reads
 `web/math.test.js`. Output keeps the message and the project's own stack
 frames; frames from `node_modules` and node internals are dropped. A test
 file that fails to load (syntax or import error) is the target's
-`build_error`, not a failure.
+`build_error`, not a failure. So is a runner that cannot start ("pytest is
+not installed or not on PATH"); the other targets still run and the
+results are saved.
 
 Package manager for JS: `bun x` if `bun.lockb` or `bun.lock` exists,
 `pnpm exec` if `pnpm-lock.yaml`, `yarn` if `yarn.lock`, else `npx`. Detect

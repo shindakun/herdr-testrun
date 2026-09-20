@@ -59,10 +59,22 @@ pub fn run(
         let header = format!("==> {} in {}\n", target.adapter.id(), target.dir.display());
         on_line(&header);
         raw.push_str(&header);
-        let result = run_target(root, target, &state.dir, timeout, only, |_, line| {
+        // A target that cannot start (runner missing, spawn error) is that
+        // target's build error; the other targets still run.
+        let result = match run_target(root, target, &state.dir, timeout, only, |_, line| {
             on_line(line);
             raw.push_str(line);
-        })?;
+        }) {
+            Ok(r) => r,
+            Err(e) => {
+                on_line(&format!("{e}\n"));
+                raw.push_str(&e);
+                raw.push('\n');
+                let mut r = RunResult::new(target.adapter.id(), &target.dir, -1);
+                r.build_error = Some(e);
+                r
+            }
+        };
         results.push(result);
     }
     let log = state.raw_log();
@@ -166,6 +178,26 @@ mod tests {
         .unwrap();
         assert_eq!(lines, vec!["hi\n"]);
         assert_eq!(r.exit_code, 101);
+    }
+
+    #[test]
+    fn a_missing_runner_is_that_targets_build_error() {
+        let root = tempdir("job-missing-runner");
+        std::fs::write(root.join("pytest.ini"), "[pytest]\n").unwrap();
+        std::fs::write(root.join("go.mod"), "module x\n").unwrap();
+        std::fs::write(
+            root.join(crate::config::FILE_NAME),
+            "[[target]]\nadapter = \"pytest\"\ncommand = [\"herdr-testrun-no-such-runner\"]\n\n[[target]]\nadapter = \"go\"\ncommand = [\"sh\", \"-c\", \"echo ok\"]\n",
+        )
+        .unwrap();
+        let state = ProjectState::open(&tempdir("job-missing-runner-state"), &root).unwrap();
+        let results = run(&root, None, &state, &Scope::All, |_| {}).unwrap();
+        assert_eq!(results.len(), 2, "the second target still ran");
+        let err = results[0].build_error.as_deref().unwrap();
+        assert!(err.contains("herdr-testrun-no-such-runner"), "{err}");
+        assert!(err.contains("not installed"), "{err}");
+        assert_eq!(results[1].exit_code, 0);
+        assert!(state.last().unwrap().is_some(), "results were saved");
     }
 
     #[test]

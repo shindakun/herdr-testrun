@@ -21,13 +21,27 @@ impl Adapter for Pytest {
         "pytest"
     }
 
-    /// `pyproject.toml`, `pytest.ini`, or a `setup.cfg` with `[tool:pytest]`.
+    /// `pytest.ini`; a `setup.cfg` with `[tool:pytest]`; or a
+    /// `pyproject.toml` that mentions pytest, sits beside a `conftest.py`,
+    /// or has a `tests/` directory. A `pyproject.toml` alone is any Python
+    /// code, not a test suite.
     fn detect(&self, root: &Path) -> bool {
-        if root.join("pytest.ini").is_file() || root.join("pyproject.toml").is_file() {
+        if root.join("pytest.ini").is_file() {
             return true;
         }
-        std::fs::read_to_string(root.join("setup.cfg"))
+        if std::fs::read_to_string(root.join("setup.cfg"))
             .is_ok_and(|t| t.lines().any(|l| l.trim() == "[tool:pytest]"))
+        {
+            return true;
+        }
+        match std::fs::read_to_string(root.join("pyproject.toml")) {
+            Ok(text) => {
+                text.contains("pytest")
+                    || root.join("conftest.py").is_file()
+                    || root.join("tests").is_dir()
+            }
+            Err(_) => false,
+        }
     }
 
     fn command(&self, root: &Path, state: &Path, only: Option<&[RerunKey]>) -> Command {
@@ -285,6 +299,25 @@ mod tests {
         std::fs::write(dir.join("setup.cfg"), "[flake8]\n").unwrap();
         assert!(!Pytest.detect(&dir));
         std::fs::write(dir.join("setup.cfg"), "[tool:pytest]\n").unwrap();
+        assert!(Pytest.detect(&dir));
+    }
+
+    #[test]
+    fn a_bare_pyproject_is_not_a_test_suite() {
+        let dir = crate::testutil::tempdir("pytest-pyproject");
+        std::fs::write(dir.join("pyproject.toml"), "[project]\nname = \"x\"\n").unwrap();
+        assert!(!Pytest.detect(&dir));
+        std::fs::create_dir(dir.join("tests")).unwrap();
+        assert!(Pytest.detect(&dir));
+        std::fs::remove_dir(dir.join("tests")).unwrap();
+        std::fs::write(dir.join("conftest.py"), "").unwrap();
+        assert!(Pytest.detect(&dir));
+        std::fs::remove_file(dir.join("conftest.py")).unwrap();
+        std::fs::write(
+            dir.join("pyproject.toml"),
+            "[project]\nname = \"x\"\n[tool.pytest.ini_options]\n",
+        )
+        .unwrap();
         assert!(Pytest.detect(&dir));
     }
 

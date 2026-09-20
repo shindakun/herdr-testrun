@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- A runner that cannot start is that target's build error; the other targets still run. A bare `pyproject.toml` no longer counts as a pytest suite.
+
 ## 0.1.0 (2026-09-20)
 
 First release.

@@ -89,11 +89,11 @@ herdr-testrun log --dir path/to/project        # page the last raw output
 | jest | `jest` in package.json dependencies | `npx jest --json --outputFile=... --testLocationInResults` |
 | vitest | `vitest` in package.json dependencies | `npx vitest run --reporter=json --outputFile=...` |
 | nodetest | `scripts.test` starts with `node --test` | `node --test --test-reporter=tap` |
-| pytest | `pyproject.toml`, `pytest.ini`, or `setup.cfg` with `[tool:pytest]` | `pytest -o junit_family=xunit1 --junitxml=... -q` |
+| pytest | `pytest.ini`; `setup.cfg` with `[tool:pytest]`; or `pyproject.toml` that mentions pytest, beside a `conftest.py`, or with a `tests/` directory | `pytest -o junit_family=xunit1 --junitxml=... -q` |
 
 Every matching adapter runs. A root with no markers is checked one level down, so `web/package.json` under a Go root is found. JS runners use `bun x`, `pnpm exec`, or `yarn` when the matching lockfile exists, else `npx`.
 
-Each failure carries the test name, the file and line relative to the project root, and the runner's output for that test (40 lines at most; the rest is in the raw log). Compiler errors, import errors, and timeouts show as a build error for the target.
+Each failure carries the test name, the file and line relative to the project root, and the runner's output for that test (40 lines at most; the rest is in the raw log). Compiler errors, import errors, timeouts, and a runner that is not installed show as a build error for the target; the other targets still run.
 
 ## Configure
 
