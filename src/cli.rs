@@ -52,17 +52,46 @@ fn plugin_env() -> Result<Option<PluginEnv>, String> {
 }
 
 /// The project root for a subcommand. `--dir` or `HERDR_TESTRUN_ROOT` is
-/// the root as given. Otherwise the detection walk starts at the focused
-/// pane's cwd from the Herdr context, else the process cwd.
+/// the root as given. Otherwise the detection walk starts at the first of:
+/// the focused pane's cwd, the workspace's agent pane cwd, the workspace
+/// cwd, the process cwd. A cwd inside Herdr's plugins directory is a
+/// plugin pane (a file viewer, this pane) and is skipped.
 fn project_root(dir: Option<PathBuf>, env: Option<&PluginEnv>) -> Result<PathBuf, String> {
     if let Some(d) = dir.or_else(herdr::root_override) {
         return std::fs::canonicalize(&d).map_err(|e| format!("{}: {e}", d.display()));
     }
-    let start = match env.and_then(|e| e.context.as_ref()).and_then(|c| c.cwd()) {
-        Some(c) => c,
+    let start = match env {
+        Some(env) => start_dir(env)?,
+        None => None,
+    };
+    let start = match start {
+        Some(s) => s,
         None => std::env::current_dir().map_err(|e| format!("cwd: {e}"))?,
     };
     Ok(detect::find_root(&start))
+}
+
+fn start_dir(env: &PluginEnv) -> Result<Option<PathBuf>, String> {
+    let ctx = env.context.as_ref();
+    let usable = |p: Option<&str>| {
+        p.map(PathBuf::from)
+            .filter(|p| p.is_dir() && !env.is_plugin_dir(p))
+    };
+    if let Some(p) = usable(ctx.and_then(|c| c.focused_pane_cwd.as_deref())) {
+        return Ok(Some(p));
+    }
+    if let Some(workspace) = ctx.and_then(|c| c.workspace_id.as_deref()) {
+        let agents = env.agents()?;
+        let agent = herdr::pick_agent(
+            &agents,
+            workspace,
+            ctx.and_then(|c| c.focused_pane_id.as_deref()),
+        );
+        if let Some(p) = usable(agent.and_then(|a| a.cwd.as_deref())) {
+            return Ok(Some(p));
+        }
+    }
+    Ok(usable(ctx.and_then(|c| c.workspace_cwd.as_deref())))
 }
 
 /// Under Herdr the plugin state dir; standalone, a directory under temp.

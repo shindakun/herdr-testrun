@@ -172,9 +172,15 @@ format has not changed in years and is the stable interface.
 
 ## Detection
 
-1. Start from `--dir` when given; it is the root as given, no walk.
-   Otherwise start from `focused_pane_cwd` in `HERDR_PLUGIN_CONTEXT_JSON`,
-   falling back to `workspace_cwd`, then the process cwd.
+1. Start from `--dir` or `HERDR_TESTRUN_ROOT` when given; that is the root
+   as given, no walk. Otherwise start from the first usable directory of:
+   `focused_pane_cwd` in `HERDR_PLUGIN_CONTEXT_JSON`, the cwd of the
+   workspace's agent pane (`herdr agent list`, same pick as `send`),
+   `workspace_cwd`, the process cwd. A cwd under Herdr's plugins directory
+   (`~/.config/herdr/plugins`, derived from `HERDR_PLUGIN_CONFIG_DIR`) is
+   not usable: it is a plugin pane such as a file viewer, and Herdr reports
+   it as the focused pane when the key is pressed there. `workspace_cwd` is
+   the focused pane's cwd too, so it is checked the same way.
 2. Walk up from there. Stop at the first directory containing
    `.herdr-testrun.toml` or `.git`. That is the project root. With neither,
    the start directory is the root.

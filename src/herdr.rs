@@ -88,6 +88,28 @@ impl PluginEnv {
     }
 }
 
+impl PluginEnv {
+    /// Herdr's plugins directory (`~/.config/herdr/plugins`), derived from
+    /// the config dir Herdr hands out under `plugins/config/<id>`.
+    pub fn plugins_dir(&self) -> Option<PathBuf> {
+        plugins_dir_from(&self.config_dir)
+    }
+
+    /// Whether `path` is inside an installed plugin's checkout. Plugin panes
+    /// (a file viewer, this pane) run with such a cwd, and it is never the
+    /// project to test.
+    pub fn is_plugin_dir(&self, path: &std::path::Path) -> bool {
+        self.plugins_dir().is_some_and(|d| path.starts_with(d))
+    }
+}
+
+fn plugins_dir_from(config_dir: &std::path::Path) -> Option<PathBuf> {
+    config_dir
+        .ancestors()
+        .find(|a| a.file_name().is_some_and(|n| n == "plugins"))
+        .map(std::path::Path::to_path_buf)
+}
+
 /// The parts of `HERDR_PLUGIN_CONTEXT_JSON` this plugin reads. Pane commands
 /// get it too, with the focused pane at the moment the pane opened.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -259,6 +281,26 @@ mod tests {
         let other = r#"{"event":"pane_focused","data":{"type":"pane_focused","pane_id":"w1:p1","workspace_id":"w1"}}"#;
         assert_eq!(AgentStatusEvent::parse(other).unwrap(), None);
         assert!(AgentStatusEvent::parse("{").is_err());
+    }
+
+    #[test]
+    fn plugins_dir_is_the_config_dir_ancestor() {
+        let cfg = std::path::Path::new("/home/u/.config/herdr/plugins/config/shindakun.testrun");
+        assert_eq!(
+            plugins_dir_from(cfg),
+            Some(PathBuf::from("/home/u/.config/herdr/plugins"))
+        );
+        assert_eq!(plugins_dir_from(std::path::Path::new("/tmp/x")), None);
+        let env = PluginEnv {
+            config_dir: cfg.to_path_buf(),
+            state_dir: PathBuf::new(),
+            bin_path: PathBuf::new(),
+            context: None,
+        };
+        assert!(env.is_plugin_dir(std::path::Path::new(
+            "/home/u/.config/herdr/plugins/github/herdr-file-viewer-c993/src"
+        )));
+        assert!(!env.is_plugin_dir(std::path::Path::new("/home/u/Code/app")));
     }
 
     #[test]

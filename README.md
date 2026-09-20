@@ -37,7 +37,7 @@ command = "shindakun.testrun.send"
 description = "send test failures to agent"
 ```
 
-`run` finds the project root from the focused pane's cwd (the nearest directory with `.herdr-testrun.toml` or `.git`) and opens the Tests pane beside it. The pane runs the tests on start and again on each `run`. `send` formats the last run's failures as one prompt and gives it to the workspace's agent through `herdr agent prompt`.
+`run` finds the project root from the focused pane's cwd (the nearest directory with `.herdr-testrun.toml` or `.git`) and opens the Tests pane beside it. When the focused pane is another plugin's pane, such as a file viewer, it uses the workspace's agent pane instead. The pane runs the tests on start and again on each `run`. `send` formats the last run's failures as one prompt and gives it to the workspace's agent through `herdr agent prompt`.
 
 The pane:
 
