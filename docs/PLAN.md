@@ -152,7 +152,15 @@ Rerun failed only:
 
 A target with a `command` override has no rerun form; rerun-failed runs the
 override in full. Targets with no failing test are skipped. The rerun's
-results replace the last run's, so the header shows only what ran.
+results replace the last run's, so the header shows only what ran. Jest and
+Vitest count the tests `-t` filtered out as skipped.
+
+Adapters report files relative to their target dir. `job::run_target`
+prefixes the target's path under the root, so a monorepo failure reads
+`web/math.test.js`. Output keeps the message and the project's own stack
+frames; frames from `node_modules` and node internals are dropped. A test
+file that fails to load (syntax or import error) is the target's
+`build_error`, not a failure.
 
 Package manager for JS: `bun x` if `bun.lockb` or `bun.lock` exists,
 `pnpm exec` if `pnpm-lock.yaml`, `yarn` if `yarn.lock`, else `npx`. Detect
@@ -406,8 +414,8 @@ Fixture tests (`tests/fixtures.rs`): run the real adapter against each
 `fixtures/*` project end to end and compare with its `expected.json`
 (adapter, name, file, line per failure, plus whether a build error is
 expected). Opt in with `HERDR_TESTRUN_FIXTURES=1`. A fixture is skipped, and
-named, when its toolchain is missing, when a JS fixture has no
-`node_modules`, or when the adapter's parser is not built. Toolchains on the
+named, when its toolchain is missing or when a JS fixture has no
+`node_modules` (`make fixture-deps` installs them). Toolchains on the
 dev machine: cargo, go, node, pnpm, yarn. Missing: bun, pytest; the pytest
 fixture runs through a venv with `pytest` on `PATH`.
 
@@ -430,8 +438,9 @@ with Go, Node, and Python installed.
    `run` opening the pane, `o` opening the popup.
 4. `send` against a live herdr session. The code is in; it has not been run
    under Herdr.
-5. cargo, jest, vitest, nodetest, pytest parsers. Fixtures and recordings
-   exist; add each id to `READY` in `tests/fixtures.rs` as its parser lands.
+5. cargo, jest, vitest, nodetest, pytest parsers. Done: recorded-output
+   tests, all nine fixtures end to end, rerun-failed checked in the pane for
+   each runner.
 6. Auto-run guards in the pane: change gate, auto-send with `max_rounds`
    and the identical-failure-set stop. The hook already forwards idle
    events to the pane's socket when auto-run is on.

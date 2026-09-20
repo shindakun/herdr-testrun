@@ -1,5 +1,6 @@
-//! `vitest run --reporter=json --outputFile=STATE/vitest.json`. Same result
-//! shape as jest.
+//! `vitest run --reporter=json --outputFile=STATE/vitest.json`. Same
+//! report shape as jest, without `location`; the line comes from the first
+//! in-project stack frame of the failure message.
 
 use std::path::Path;
 use std::process::Command;
@@ -36,14 +37,19 @@ impl Adapter for Vitest {
     fn parse(
         &self,
         root: &Path,
-        _state: &Path,
+        state: &Path,
         _stdout: &str,
-        _stderr: &str,
+        stderr: &str,
         code: i32,
     ) -> RunResult {
-        let mut r = RunResult::new(self.id(), root, code);
-        r.build_error = Some(super::not_built(self.id()));
-        r
+        super::jest::parse_report(
+            self.id(),
+            root,
+            &state.join(OUTPUT_FILE),
+            stderr,
+            code,
+            |file, name| RerunKey::VitestTest { file, name },
+        )
     }
 }
 

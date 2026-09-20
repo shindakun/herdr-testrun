@@ -59,7 +59,7 @@ pub fn run(
         let header = format!("==> {} in {}\n", target.adapter.id(), target.dir.display());
         on_line(&header);
         raw.push_str(&header);
-        let result = run_target(target, &state.dir, timeout, only, |_, line| {
+        let result = run_target(root, target, &state.dir, timeout, only, |_, line| {
             on_line(line);
             raw.push_str(line);
         })?;
@@ -75,8 +75,10 @@ pub fn run(
 }
 
 /// Runs one target and parses the result. `only` narrows the run to those
-/// keys; a command override ignores it.
+/// keys; a command override ignores it. Failure paths come back relative to
+/// `root`, not the target dir.
 pub fn run_target(
+    root: &Path,
     target: &Target,
     state: &Path,
     timeout: Duration,
@@ -100,6 +102,15 @@ pub fn run_target(
     result.duration = out.duration;
     if out.timed_out {
         result.build_error = Some(format!("timed out after {}s", timeout.as_secs()));
+    }
+    if let Ok(sub) = target.dir.strip_prefix(root) {
+        if !sub.as_os_str().is_empty() {
+            for f in &mut result.failures {
+                if let Some(file) = f.file.as_mut().filter(|p| p.is_relative()) {
+                    *file = sub.join(&*file);
+                }
+            }
+        }
     }
     Ok(result)
 }
@@ -144,9 +155,14 @@ mod tests {
             command: Some(vec!["sh".into(), "-c".into(), "echo hi; exit 101".into()]),
         };
         let mut lines = Vec::new();
-        let r = run_target(&target, &root, Duration::from_secs(5), None, |_, l| {
-            lines.push(l.to_string())
-        })
+        let r = run_target(
+            &root,
+            &target,
+            &root,
+            Duration::from_secs(5),
+            None,
+            |_, l| lines.push(l.to_string()),
+        )
         .unwrap();
         assert_eq!(lines, vec!["hi\n"]);
         assert_eq!(r.exit_code, 101);

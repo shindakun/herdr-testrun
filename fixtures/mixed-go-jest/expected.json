@@ -2,7 +2,7 @@
   "adapters": ["go", "jest"],
   "failures": [
     { "adapter": "go", "name": "TestGreet", "file": "mixed_test.go", "line": 7 },
-    { "adapter": "jest", "name": "doubles a number", "file": "math.test.js", "line": 7 }
+    { "adapter": "jest", "name": "doubles a number", "file": "web/math.test.js", "line": 7 }
   ],
   "build_error": false
 }

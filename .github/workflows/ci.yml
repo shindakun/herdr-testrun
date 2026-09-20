@@ -48,7 +48,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - run: HERDR_TESTRUN_FIXTURES=1 cargo test --test fixtures -- --nocapture
+      - run: pip install pytest
+      - run: make fixture-deps
+      - run: make test-fixtures
 
   audit:
     runs-on: ubuntu-latest

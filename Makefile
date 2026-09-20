@@ -1,4 +1,4 @@
-.PHONY: all help build release test test-fixtures fmt fmt-check clippy audit md-lint hooks check clean
+.PHONY: all help build release test fixture-deps test-fixtures fmt fmt-check clippy audit md-lint hooks check clean
 
 all: check ## Default: run the local check suite
 
@@ -13,6 +13,11 @@ release: ## Release build (what the herdr manifest runs)
 
 test: ## Unit and parser tests, no toolchains beyond Rust
 	cargo test
+
+fixture-deps: ## Install the JS fixtures' node_modules (needs npm)
+	@for d in fixtures/jest-basic fixtures/vitest-basic fixtures/mixed-go-jest/web; do \
+		(cd $$d && npm install --no-audit --no-fund --loglevel=error); \
+	done
 
 test-fixtures: ## Run the real fixture projects too (uses whatever toolchains are installed)
 	HERDR_TESTRUN_FIXTURES=1 cargo test --test fixtures -- --nocapture

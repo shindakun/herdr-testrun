@@ -3,7 +3,7 @@
 //!
 //! Opt in with `HERDR_TESTRUN_FIXTURES=1` (`make test-fixtures`); the suite
 //! shells out to go, cargo, node, and pytest. A fixture whose toolchain is
-//! missing, or whose adapter has no parser yet, is skipped and named.
+//! missing is skipped and named.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -15,9 +15,6 @@ use serde::Deserialize;
 use herdr_testrun::config::Config;
 use herdr_testrun::detect;
 use herdr_testrun::job::run_target;
-
-/// Adapters with a parser. Extend as docs/PLAN.md build order step 5 lands.
-const READY: &[&str] = &["go"];
 
 #[derive(Debug, Deserialize)]
 struct Expected {
@@ -109,16 +106,19 @@ fn fixtures_match_expected() {
         let mut ran: Vec<&str> = Vec::new();
         for target in &targets {
             let id = target.adapter.id();
-            if !READY.contains(&id) {
-                eprintln!("{name}: skipped {id} (parser not built yet)");
-                continue;
-            }
             if !installed(toolchain(id)) || !deps_ready(id, &target.dir) {
                 eprintln!("{name}: skipped {id} (toolchain or dependencies missing)");
                 continue;
             }
-            let result =
-                run_target(target, &state, Duration::from_secs(300), None, |_, _| {}).unwrap();
+            let result = run_target(
+                &root,
+                target,
+                &state,
+                Duration::from_secs(300),
+                None,
+                |_, _| {},
+            )
+            .unwrap();
             build_error |= result.build_error.is_some();
             got.extend(result.failures.iter().map(|f| ExpectedFailure {
                 adapter: f.adapter.to_string(),

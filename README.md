@@ -2,7 +2,7 @@
 
 A [Herdr](https://herdr.dev) plugin that runs a project's tests in a split pane, lists the failures, and sends them to the workspace's agent on one key. Rust, one binary. One adapter per test runner: Go, Cargo, Jest, Vitest, `node --test`, and Pytest.
 
-Status: the pane, detection, the config file, the Go adapter, and the `run`, `send`, and `log` subcommands work. The other five parsers and the auto-run guards are next. The design and build order are in [docs/PLAN.md](docs/PLAN.md).
+Status: the pane, detection, the config file, all six adapters, and the `run`, `send`, and `log` subcommands work. The auto-run guards are next. The design and build order are in [docs/PLAN.md](docs/PLAN.md).
 
 ## Install
 
@@ -91,7 +91,7 @@ herdr-testrun log --dir path/to/project        # page the last raw output
 
 Every matching adapter runs. A root with no markers is checked one level down, so `web/package.json` under a Go root is found. JS runners use `bun x`, `pnpm exec`, or `yarn` when the matching lockfile exists, else `npx`.
 
-Only the Go parser is built. The other adapters run their command and report `parser not built yet` until docs/PLAN.md step 5 lands.
+Each failure carries the test name, the file and line relative to the project root, and the runner's output for that test (40 lines at most; the rest is in the raw log). Compiler errors, import errors, and timeouts show as a build error for the target.
 
 ## Configure
 
@@ -118,7 +118,7 @@ make test-fixtures   # also run the real fixture projects with whatever toolchai
 make hooks           # install pre-commit
 ```
 
-Parser tests read recorded runner output from `tests/output/`. Re-record a fixture with `scripts/record.sh FIXTURE` when a runner changes its format. The fixture test compares each `fixtures/*/expected.json` with a real run and skips fixtures whose toolchain is missing; `fixtures/jest-basic` and `fixtures/vitest-basic` need `npm install` first, and `fixtures/pytest-basic` needs `pytest` on `PATH`.
+Parser tests read recorded runner output from `tests/output/`. Re-record a fixture with `scripts/record.sh FIXTURE` when a runner changes its format. The fixture test compares each `fixtures/*/expected.json` with a real run and skips fixtures whose toolchain is missing. `make fixture-deps` installs the JS fixtures' `node_modules`; `fixtures/pytest-basic` needs `pytest` on `PATH`.
 
 Adding a runner: one file in `src/adapters/`, one line in `src/adapters/mod.rs`, one fixture project with an `expected.json`, one recording.
 
